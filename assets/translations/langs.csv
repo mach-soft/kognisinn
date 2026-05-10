@@ -1,0 +1,198 @@
+key,cs,en,de
+dialog_exit_title,Ukončit trénink?,Exit training?,Training beenden?
+dialog_exit_body,Kognitivní růst vyžaduje konzistenci. Opravdu si přeješ aplikaci ukončit?,Cognitive growth requires consistency. Do you really want to exit the app?,Kognitives Wachstum erfordert Konsistenz. Möchtest du die App wirklich beenden?
+global_btn_stay,ZŮSTAT,STAY,BLEIBEN
+global_btn_exit,UKONČIT,EXIT,BEENDEN
+menu_title,KOGNIX,KOGNIX,KOGNIX
+menu_subtitle,NEUROKOGNITIVNÍ TRÉNINK,NEUROCOGNITIVE TRAINING,NEUROKOGNITIVES TRAINING
+menu_btn_dnb,Dual N-Back,Dual N-Back,Dual N-Back
+menu_btn_digit_span,Digit Span,Digit Span,Digit Span
+menu_btn_stroop,Stroopův Test,Stroop Test,Stroop-Test
+menu_btn_ecorsi,eCorsi Test,eCorsi Test,eCorsi-Test
+menu_btn_palace,Paměťový Palác,Memory Palace,Gedächtnispalast
+menu_btn_settings,NASTAVENÍ APLIKACE,APP SETTINGS,APP-EINSTELLUNGEN
+settings_title,NASTAVENÍ APLIKACE,APP SETTINGS,APP-EINSTELLUNGEN
+settings_section_graphics,GRAFIKA A PROSTŘEDÍ,GRAPHICS & ENVIRONMENT,GRAFIK & UMGEBUNG
+settings_dark_mode,Tmavý režim,Dark Mode,Dunkelmodus
+settings_dark_mode_on,Aktivní (Neuro-Dark),Active (Neuro-Dark),Aktiv (Neuro-Dark)
+settings_dark_mode_off,Vypnuto (Light Mode),Off (Light Mode),Aus (Heller Modus)
+settings_section_sounds,ZVUKY A HAPTIKA,SOUNDS & HAPTICS ,TÖNE & HAPTIK
+settings_mute_all,Ztlumit veškeré zvuky,Mute all sounds,Alle Töne stummschalten
+settings_volume_desc,Hlasitost pípnutí a odezvy,Volume of beeps and feedback,Lautstärke von Signaltönen und Feedback
+settings_section_language,JAZYK / LANGUAGE / SPRACHE,LANGUAGE,SPRACHE
+dnb_title,DUAL N-BACK,DUAL N-BACK,DUAL N-BACK
+global_interrupt_title,Přerušit stimulaci?,Interrupt stimulation?,Stimulation unterbrechen?
+global_interrupt_body,Neuložený postup z této relace bude ztracen.,Unsaved progress from this session will be lost.,Nicht gespeicherter Fortschritt dieser Sitzung geht verloren.
+dnb_status,ÚROVEŇ N={} | KOLO {}/{},LEVEL N={} | ROUND {}/{},LEVEL N={} | RUNDE {}/{}
+dnb_btn_position,POZICE,POSITION,POSITION
+dnb_btn_audio,ZVUK,AUDIO,TON
+global_mode_adaptive,ADAPTIVNÍ TRÉNINK,ADAPTIVE TRAINING,ADAPTIVES TRAINING
+global_mode_manual,MANUÁLNÍ MÓD,MANUAL MODE,MANUELLER MODUS
+global_analytics,ANALYTIKA,ANALYTICS,ANALYTIK
+global_settings,NASTAVENÍ,SETTINGS,EINSTELLUNGEN
+global_exit_module,UKONČIT MODUL,EXIT MODULE,MODUL BEENDEN
+dnb_settings_title,PARAMETRY MANUÁLNÍHO MÓDU,MANUAL MODE PARAMETERS,PARAMETER MANUELLER MODUS
+dnb_settings_level,ÚROVEŇ N-BACK,N-BACK LEVEL,N-BACK LEVEL
+dnb_settings_speed,RYCHLOST STIMULU,STIMULUS SPEED,STIMULUS GESCHWINDIGKEIT
+global_btn_save_back,ULOŽIT A ZPĚT,SAVE AND BACK,SPEICHERN UND ZURÜCK
+global_training_complete,TRÉNINK DOKONČEN,TRAINING COMPLETE,TRAINING ABGESCHLOSSEN
+dnb_success_rate,Úspěšnost (N={}),Success rate (N={}),Erfolgsquote (N={})
+global_btn_continue,POKRAČOVAT,CONTINUE,WEITER
+global_btn_to_menu,DO MENU,TO MENU,ZUM MENÜ
+global_tab_adaptive,ADAPTIVNÍ,ADAPTIVE,ADAPTIV
+global_tab_manual,MANUÁLNÍ,MANUAL,MANUELL
+dnb_graph_adaptive,ADAPTIVNÍ RŮST,ADAPTIVE GROWTH,ADAPTIVES WACHSTUM
+dnb_graph_manual,MANUÁLNÍ TRÉNINK,MANUAL TRAINING,MANUELLES TRAINING
+global_no_data,Žádná data k analýze.,No data to analyze.,Keine Daten zur Analyse.
+global_btn_back,ZPĚT,BACK,ZURÜCK
+ds_title,DIGIT SPAN,DIGIT SPAN,DIGIT SPAN
+ds_interrupt_body,Kognitivní relace bude ukončena a postup nebude uložen.,The cognitive session will be terminated and progress will not be saved.,Die kognitive Sitzung wird beendet und der Fortschritt wird nicht gespeichert.
+ds_mode_fast,RYCHLÝ TEST,FAST TEST,SCHNELLTEST
+ds_mode_continuous,KONTINUÁLNÍ HRA,CONTINUOUS GAME,KONTINUIERLICHES SPIEL
+ds_mode_free,VOLNÝ TRÉNINK,FREE TRAINING,FREIES TRAINING
+ds_settings_title,PARAMETRY STIMULACE,STIMULATION PARAMETERS,STIMULATIONSPARAMETER
+ds_settings_dictation,Diktování,Dictation,Diktieren
+ds_settings_numbers_only,Pouze čísla,Numbers only,Nur Zahlen
+ds_settings_full_feedback,Plná vazba,Full feedback,Volles Feedback
+ds_settings_off,Vypnuto,Off,Aus
+ds_settings_speed,Rychlost toku informací,Information flow speed,Informationsfluss-Geschwindigkeit
+global_btn_save,ULOŽIT,SAVE,SPEICHERN
+ds_level_title,STARTOVNÍ ÚROVEŇ,STARTING LEVEL,STARTLEVEL
+ds_btn_init,INICIALIZOVAT,INITIALIZE,INITIALISIEREN
+global_btn_cancel,ZRUŠIT,CANCEL,ABBRECHEN
+ds_select_mode_title,VÝBĚR KOGNITIVNÍHO MÓDU,COGNITIVE MODE SELECTION,KOGNITIVER MODUS AUSWAHL
+ds_mode_forward,PŘÍMÁ SEKVENCE,FORWARD SEQUENCE,VORWÄRTS SEQUENZ
+ds_mode_reverse,INVERZNÍ (REVERZNÍ),REVERSE,RÜCKWÄRTS
+ds_mode_ascending,VZESTUPNÉ ŘAZENÍ,ASCENDING ORDER,AUFSTEIGENDE REIHENFOLGE
+ds_mode_nback,N-BACK ASOCIACE,N-BACK ASSOCIATION,N-BACK ASSOZIATION
+ds_status_info,{} | ÚROVEŇ: {},{} | LEVEL: {},{} | LEVEL: {}
+ds_phase_interrupted,PŘERUŠENÍ TOKU,FLOW INTERRUPTED,FLUSS UNTERBROCHEN
+ds_phase_success,SYNAPSE UPEVNĚNA,SYNAPSE CONSOLIDATED,SYNAPSE KONSOLIDIERT
+ds_phase_reconstruct,REKONSTRUKCE DAT,DATA RECONSTRUCTION,DATENREKONSTRUKTION
+ds_btn_save_exit,ULOŽIT A OPUSTIT,SAVE AND EXIT,SPEICHERN UND VERLASSEN
+ds_capacity_empty,KAPACITA VYČERPÁNA,CAPACITY EXHAUSTED,KAPAZITÄT ERSCHÖPFT
+ds_res_shown,Zobrazeno:,Shown:,Angezeigt:
+ds_res_entered,Zadáno:,Entered:,Eingegeben:
+ds_res_target,Cíl:,Target:,Ziel:
+global_btn_restart,RESTART,RESTART,NEUSTART
+ds_analytics_title,MAXIMÁLNÍ KAPACITA,MAXIMUM CAPACITY,MAXIMALE KAPAZITÄT
+ds_badge_seq,SEKVENCE,SEQUENCE,SEQUENZ
+ds_badge_rev,REVERZNÍ,REVERSE,RÜCKWÄRTS
+ds_badge_asc,VZESTUPNĚ,ASCENDING,AUFSTEIGEND
+ds_badge_nback,N-BACK,N-BACK,N-BACK
+ds_tr_forward,Sekvence,Sequence,Sequenz
+ds_tr_reverse,Reverzní,Reverse,Rückwärts
+ds_tr_ascending,Vzestupně,Ascending,Aufsteigend
+ds_tr_nback,N-back,N-back,N-back
+stroop_title,STROOPŮV TEST,STROOP TEST,STROOP-TEST
+stroop_status,STIMUL: {} / {},STIMULUS: {} / {},STIMULUS: {} / {}
+stroop_inst_color,URČETE BARVU PÍSMA,IDENTIFY FONT COLOR,SCHRIFTFARBE ERKENNEN
+stroop_inst_meaning,URČETE VÝZNAM SLOVA,IDENTIFY WORD MEANING,WORTBEDEUTUNG ERKENNEN
+stroop_inst_match,ODPOVÍDÁ SLOVO BARVĚ?,DOES THE WORD MATCH THE COLOR?,PASST DAS WORT ZUR FARBE?
+stroop_btn_true,PRAVDA,TRUE,WAHR
+stroop_btn_false,NEPRAVDA,FALSE,FALSCH
+stroop_mode_standard,STANDARDNÍ MÓD,STANDARD MODE,STANDARD MODUS
+stroop_mode_reverse,REVERZNÍ MÓD,REVERSE MODE,UMGEKEHRTER MODUS
+stroop_mode_tf,PRAVDA / NEPRAVDA,TRUE / FALSE,WAHR / FALSCH
+stroop_result_score,Skóre: {} / {},Score: {} / {},Ergebnis: {} / {}
+stroop_median,Medián: {} s,Median: {} s,Median: {} s
+ČERVENÁ,ČERVENÁ,RED,ROT
+MODRÁ,MODRÁ,BLUE,BLAU
+ZELENÁ,ZELENÁ,GREEN,GRÜN
+ŽLUTÁ,ŽLUTÁ,YELLOW,GELB
+ORANŽOVÁ,ORANŽOVÁ,ORANGE,ORANGE
+FIALOVÁ,FIALOVÁ,PURPLE,LILA
+ecorsi_title,eCORSI TEST,eCORSI TEST,eCORSI-TEST
+ecorsi_phase_success,SYNAPSE SPOJENA,SYNAPSE CONNECTED,SYNAPSE VERBUNDEN
+ecorsi_phase_failure,CHYBNÝ VZOR,INCORRECT PATTERN,FALSCHES MUSTER
+ecorsi_inst_watch,Sledujte vizuální stopu...,Follow the visual trail...,Folgen Sie der visuellen Spur...
+ecorsi_inst_forward,Zopakujte sekvenci,Repeat the sequence,Wiederholen Sie die Sequenz
+ecorsi_inst_reverse,Zadejte sekvenci INVERZNĚ,Enter the sequence in REVERSE,Geben Sie die Sequenz RÜCKWÄRTS ein
+ecorsi_capacity,KAPACITA: {},CAPACITY: {},KAPAZITÄT: {}
+ecorsi_btn_increase,ZVÝŠIT ZÁTĚŽ,INCREASE LOAD,BELASTUNG ERHÖHEN
+ecorsi_btn_restart_round,RESTART KOLA,RESTART ROUND,RUNDE NEUSTARTEN
+ecorsi_mode_forward,MÓD: VPŘED,MODE: FORWARD,MODUS: VORWÄRTS
+ecorsi_mode_reverse,MÓD: INVERZNÍ,MODE: REVERSE,MODUS: UMGEKEHRT
+ecorsi_res_capacity,Kapacita: {},Capacity: {},Kapazität: {}
+ecorsi_res_score,Zasaženo bodů: {},Points hit: {},Getroffene Punkte: {}
+ecorsi_hist_item,Kapacita: {} (Vzorů: {}),Capacity: {} (Patterns: {}),Kapazität: {} (Muster: {})
+palace_title,PAMĚŤOVÝ PALÁC,MEMORY PALACE,GEDÄCHTNISPALAST
+palace_phase_expanded,PALÁC ROZŠÍŘEN,PALACE EXPANDED,PALAST ERWEITERT
+palace_phase_mastered,MÍSTNOSTI ZVLÁDNUTY,ROOMS MASTERED,RÄUME GEMEISTERT
+palace_phase_failure,CHYBNÁ ASOCIACE,INCORRECT ASSOCIATION,FALSCHE ASSOZIATION
+palace_capacity,KAPACITA: {},CAPACITY: {},KAPAZITÄT: {}
+palace_inst_prep,PŘÍPRAVA SYNAPSÍ...,PREPARING SYNAPSES...,VORBEREITUNG DER SYNAPSEN...
+palace_inst_encode,ZAPAMATUJTE SI ASOCIACI,MEMORIZE THE ASSOCIATION,PRÄGE DIR DIE ASSOZIATION EIN
+palace_inst_recall,CO SE NACHÁZELO ZDE?,WHAT WAS LOCATED HERE?,WAS BEFAND SICH HIER?
+palace_settings_global,GLOBÁLNÍ NASTAVENÍ,GLOBAL SETTINGS,GLOBALE EINSTELLUNGEN
+palace_settings_start_adaptive,VÝCHOZÍ START ADAPTIVNÍHO MÓDU,DEFAULT ADAPTIVE START,STANDARD ADAPTIVER START
+palace_settings_time,VÝCHOZÍ ČAS NA ZAPAMATOVÁNÍ,DEFAULT MEMORIZATION TIME,STANDARD EINPRÄGEZEIT
+palace_setup_title,NASTAVENÍ VOLNÉHO KOLA,FREE ROUND SETUP,FREIE RUNDE EINSTELLEN
+palace_setup_capacity,KAPACITA MÍSTNOSTÍ,ROOM CAPACITY,RAUMKAPAZITÄT
+palace_setup_time_item,ČAS NA ZAPAMATOVÁNÍ JEDNÉ ASOCIACE,TIME TO MEMORIZE ONE ASSOCIATION,ZEIT PRO ASSOZIATION
+palace_btn_start_round,SPUSTIT KOLO,START ROUND,RUNDE STARTEN
+palace_btn_next_room,DALŠÍ MÍSTNOST,NEXT ROOM,NÄCHSTER RAUM
+palace_btn_repeat,OPAKOVAT SEKVENCI,REPEAT SEQUENCE,SEQUENZ WIEDERHOLEN
+palace_btn_setup_next,NASTAVIT DALŠÍ KOLO,SETUP NEXT ROUND,NÄCHSTE RUNDE EINSTELLEN
+palace_res_capacity,Kapacita: {},Capacity: {},Kapazität: {}
+palace_res_score,Zasaženo asociací: {},Associations hit: {},Getroffene Assoziationen: {}
+palace_hist_item,Kapacita: {} (Asociací: {}),Capacity: {} (Associations: {}),Kapazität: {} (Assoziationen: {})
+palace_tab_free,VOLNÝ,FREE,FREI
+ds_tts_correct,Správně,Correct,Richtig
+ds_tts_wrong,Nesprávně,Incorrect,Falsch
+settings_haptic_feedback,Haptická odezva,Haptic Feedback,Haptisches Feedback
+settings_haptic_desc,Vibrace při chybě nebo zmeškání,Vibrate on error or miss,Vibration bei Fehler oder Verpassen
+settings_haptic_duration,Délka vibrace,Vibration duration,Vibrationsdauer
+palace_loc_door,Vstupní dveře,Front door,Haustür
+palace_loc_shoerack,Botník,Shoe rack,Schuhregal
+palace_loc_mirror,Zrcadlo,Mirror,Spiegel
+palace_loc_couch,Gauč,Couch,Couch
+palace_loc_tv,Televize,TV,Fernseher
+palace_loc_coffeetable,Konferenční stůl,Coffee table,Couchtisch
+palace_loc_bookcase,Knihovna,Bookcase,Bücherregal
+palace_loc_diningtable,Jídelní stůl,Dining table,Esstisch
+palace_loc_fridge,Lednice,Fridge,Kühlschrank
+palace_loc_stove,Sporák,Stove,Herd
+palace_loc_sink,Dřez,Sink,Spüle
+palace_loc_bed,Postel,Bed,Bett
+palace_loc_nightstand,Noční stolek,Nightstand,Nachttisch
+palace_loc_wardrobe,Šatní skříň,Wardrobe,Kleiderschrank
+palace_loc_washbasin,Umyvadlo,Washbasin,Waschbecken
+palace_loc_bathtub,Vana,Bathtub,Badewanne
+palace_loc_desk,Pracovní stůl,Desk,Schreibtisch
+palace_loc_armchair,Křeslo,Armchair,Sessel
+palace_item_apple,Jablko,Apple,Apfel
+palace_item_key,Klíč,Key,Schlüssel
+palace_item_book,Kniha,Book,Buch
+palace_item_clock,Hodiny,Clock,Uhr
+palace_item_phone,Telefon,Phone,Telefon
+palace_item_lamp,Lampa,Lamp,Lampe
+palace_item_umbrella,Deštník,Umbrella,Regenschirm
+palace_item_wallet,Peněženka,Wallet,Brieftasche
+palace_item_glasses,Brýle,Glasses,Brille
+palace_item_scissors,Nůžky,Scissors,Schere
+palace_item_mug,Hrnek,Mug,Becher
+palace_item_hammer,Kladivo,Hammer,Hammer
+palace_item_ball,Míč,Ball,Ball
+palace_item_candle,Svíčka,Candle,Kerze
+palace_item_notebook,Zápisník,Notebook,Notizbuch
+palace_item_flower,Květina,Flower,Blume
+palace_item_hat,Klobouk,Hat,Hut
+palace_item_backpack,Batoh,Backpack,Rucksack
+palace_item_handmirror,Zrcátko,Hand mirror,Handspiegel
+palace_item_comb,Hřeben,Comb,Kamm
+palace_item_coin,Mince,Coin,Münze
+palace_item_ring,Prsten,Ring,Ring
+palace_item_cup,Šálek,Cup,Tasse
+palace_item_spoon,Lžíce,Spoon,Löffel
+global_btn_start_training,TRÉNINK,TRAINING,TRAINING
+dnb_settings_adaptive_title,PARAMETRY ADAPTIVNÍHO MÓDU,ADAPTIVE MODE PARAMETERS,PARAMETER ADAPTIVER MODUS
+dnb_settings_adaptation_speed,RYCHLOST ADAPTACE,ADAPTATION SPEED,ADAPTIONSGESCHWINDIGKEIT
+dnb_settings_adapt_1,Z 1 hry,From 1 game,Aus 1 Spiel
+dnb_settings_adapt_3,Medián 3,Median 3,Median 3
+dnb_settings_adapt_7,Medián 7,Median 7,Median 7
+dnb_speed_var,Proměnlivá,Variable,Variabel
+global_pts,b,pts,Pkt
+settings_section_time_format,FORMÁT ČASU,TIME FORMAT,ZEITFORMAT
+settings_time_format_12h,12hodinový (AM/PM),12-hour (AM/PM),12-Stunden (AM/PM)
+settings_time_format_24h,24hodinový,24-hour,24-Stunden

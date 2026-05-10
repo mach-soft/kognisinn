@@ -1,0 +1,107 @@
+import 'dart:async';
+import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:vibration/vibration.dart';
+
+import 'stroop_event.dart';
+import 'stroop_state.dart';
+
+class StroopBloc extends Bloc<StroopEvent, StroopState> {
+  final Random _random = Random();
+  final Stopwatch _stopwatch = Stopwatch();
+  SharedPreferences? _prefs;
+
+  final Map<String, Color> _colorMap = {
+    'ČERVENÁ': Colors.red, 'MODRÁ': Colors.blue, 'ZELENÁ': Colors.green,
+    'ŽLUTÁ': Colors.yellow, 'ORANŽOVÁ': Colors.orange, 'FIALOVÁ': Colors.purple,
+  };
+
+  StroopBloc() : super(const StroopState()) {
+    _initPrefs();
+    on<StartStroopGame>(_onStart);
+    on<AnswerSelected>(_onSelect);
+    on<ResetStroop>((event, emit) {
+      final rawHistory = _prefs?.getStringList('stroop_history') ?? [];
+      final history = rawHistory.map((s) => StroopHistoryItem.fromRawString(s)).toList();
+      emit(state.copyWith(phase: StroopPhase.menu, history: history));
+    });
+    on<ShowStroopHistory>((event, emit) => emit(state.copyWith(phase: StroopPhase.history)));
+  }
+
+  Future<void> _initPrefs() async {
+    _prefs = await SharedPreferences.getInstance();
+    add(ResetStroop());
+  }
+
+  void _onStart(StartStroopGame event, Emitter<StroopState> emit) {
+    emit(state.copyWith(
+      phase: StroopPhase.playing, activeGameType: event.gameType,
+      score: 0, currentRound: 1, currentReactionTimesMs: [], totalRounds: 20,
+    ));
+    _generateTask(emit);
+  }
+
+  void _onSelect(AnswerSelected event, Emitter<StroopState> emit) {
+    _stopwatch.stop();
+    final elapsed = _stopwatch.elapsedMilliseconds;
+    
+    bool isCorrect = event.answer == state.correctAnswer;
+
+    // --- HAPTICKÁ ODEZVA PŘI CHYBĚ ---
+    if (!isCorrect) {
+      bool isHaptic = _prefs?.getBool('global_is_haptic') ?? true;
+      if (isHaptic) {
+        int hDuration = _prefs?.getInt('global_haptic_duration') ?? 500;
+        Vibration.vibrate(duration: hDuration);
+      }
+    }
+    // ---------------------------------
+
+    int newScore = isCorrect ? state.score + 1 : state.score;
+    List<int> newTimes = List.from(state.currentReactionTimesMs)..add(elapsed);
+
+    if (state.currentRound >= state.totalRounds) {
+      newTimes.sort();
+      double sessionMedian = newTimes[newTimes.length ~/ 2] / 1000.0;
+      
+      final newItem = StroopHistoryItem(DateTime.now(), newScore, state.totalRounds, sessionMedian, state.activeGameType);
+      final newHistory = List<StroopHistoryItem>.from(state.history)..add(newItem);
+      
+      _prefs?.setStringList('stroop_history', newHistory.map((e) => e.toRawString()).toList());
+      emit(state.copyWith(phase: StroopPhase.result, score: newScore, history: newHistory));
+    } else {
+      emit(state.copyWith(score: newScore, currentRound: state.currentRound + 1, currentReactionTimesMs: newTimes));
+      _generateTask(emit);
+    }
+  }
+
+  void _generateTask(Emitter<StroopState> emit) {
+    List<String> names = _colorMap.keys.toList();
+    
+    String word = names[_random.nextInt(names.length)];
+    String inkName = names[_random.nextInt(names.length)];
+    
+    if (state.activeGameType == StroopGameType.trueFalse && _random.nextBool()) inkName = word;
+    
+    Color inkColor = _colorMap[inkName]!;
+    List<String> options = [];
+    String correct = '';
+
+    if (state.activeGameType == StroopGameType.standard) {
+      options = List.from(names)..shuffle();
+      correct = inkName;
+    } else if (state.activeGameType == StroopGameType.reverse) {
+      options = List.from(names)..shuffle();
+      correct = word;
+    } else {
+      options = ['PRAVDA', 'NEPRAVDA'];
+      correct = (word == inkName) ? 'PRAVDA' : 'NEPRAVDA';
+    }
+
+    emit(state.copyWith(currentWord: word, currentInkColor: inkColor, options: options, correctAnswer: correct));
+    _stopwatch.reset();
+    _stopwatch.start();
+  }
+}

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart'; 
 import '../bloc/settings/settings_bloc.dart';
+import 'about_app_screen.dart';
 
 class GlobalSettingsScreen extends StatelessWidget {
   const GlobalSettingsScreen({super.key});
@@ -157,6 +158,16 @@ class GlobalSettingsScreen extends StatelessWidget {
                               _langTile(context, 'Deutsch', 'de', '🇩🇪', textColor),
                               _langTile(context, 'Čeština', 'cs', '🇨🇿', textColor),
                             ],
+                          )),
+                          
+                          const SizedBox(height: 32),
+                          
+                          // Nové tlačítko O aplikaci
+                          _card(cardBg, borderColor, ListTile(
+                            leading: Icon(Icons.info_outline_rounded, color: accentColor),
+                            title: Text('settings_about_app'.tr(), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                            trailing: Icon(Icons.chevron_right_rounded, color: isDark ? Colors.white24 : Colors.black26),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutAppScreen())),
                           )),
                           
                           const SizedBox(height: 60),

@@ -1,4 +1,27 @@
 key,cs,en,de
+profile_val_title,Validita metrik,Data Validity,Datenvalidität
+profile_val_desc,Tato hodnota (1-10) ukazuje spolehlivost vašeho skóre. Odpovídá počtu unikátních dnů ze kterých je aktuální výsledek vypočítán. Pro objektivní zhodnocení kognitivní kapacity doporučujeme dosáhnout zelené validity (alespoň 8/10).,This value (1-10) indicates the reliability of your score. It corresponds to the number of unique days from which the current result is calculated. For an objective assessment we recommend reaching a green validity (at least 8/10).,Dieser Wert (1-10) zeigt die Zuverlässigkeit Ihrer Punktzahl an. Für eine objektive Beurteilung empfehlen wir eine grüne Validität (mindestens 8/10).
+profile_info_hdr_desc,O co jde?,What is it?,Worum geht es?
+profile_info_hdr_prac,V praxi,In practice,In der Praxis
+profile_info_hdr_calc,Jak to počítáme,How we calculate it,Wie wir es berechnen
+profile_info_wm_desc,Schopnost udržet a mentálně zpracovávat informace v reálném čase.,Ability to hold and mentally process information in real time.,Fähigkeit Informationen in Echtzeit zu halten und geistig zu verarbeiten.
+profile_info_wm_prac,Počítání z paměti a plynulá konverzace.,Mental math and fluent conversation.,Kopfrechnen und flüssige Konversation.
+profile_info_wm_calc,Vážený průměr z Dual N-Back (60 %) a Digit Span (40 %).,Weighted average of Dual N-Back (60%) and Digit Span (40%).,Gewichteter Durchschnitt aus Dual N-Back (60%) und Digit Span (40%).
+profile_info_vs_desc,Schopnost vnímat a pamatovat si prostorové vztahy a vizuální rozložení.,Ability to perceive and remember spatial relationships and visual layouts.,Fähigkeit räumliche Beziehungen und visuelle Layouts wahrzunehmen.
+profile_info_vs_prac,Orientace v novém městě nebo parkování.,Navigating a new city or parking.,Orientierung in einer neuen Stadt oder Parken.
+profile_info_vs_calc,Kombinace dosažené kapacity v eCorsi (80 %) a Dual N-Back (20 %).,Combination of capacity reached in eCorsi (80%) and Dual N-Back (20%).,Kombination aus erreichter Kapazität in eCorsi (80%) und Dual N-Back (20%).
+profile_info_exe_desc,Mentální brzda. Schopnost potlačit impulzy a flexibilně měnit pravidla.,Mental brake. Ability to suppress impulses and flexibly switch rules.,Mentale Bremse. Fähigkeit Impulse zu unterdrücken und Regeln flexibel zu wechseln.
+profile_info_exe_prac,Zastavení nevhodné reakce a rychlé přizpůsobení se změně plánu.,Stopping an inappropriate reaction and quick adaptation to plan changes.,Stoppen einer unangemessenen Reaktion und schnelle Anpassung an Planänderungen.
+profile_info_exe_calc,Vychází primárně ze Stroopova testu (70 %) a Dual N-Back (30 %).,Based primarily on the Stroop test (70%) and Dual N-Back (30%).,Basiert primär auf dem Stroop-Test (70%) und Dual N-Back (30%).
+profile_info_asc_desc,Schopnost vytvářet paměťové vazby mezi zdánlivě nesouvisejícími věcmi.,Ability to form memory links between seemingly unrelated things.,Fähigkeit Gedächtnisverbindungen zwischen unzusammenhängenden Dingen herzustellen.
+profile_info_asc_prac,Učení cizích slovíček nebo zapamatování si jména k nové tváři.,Learning foreign words or remembering a name to a new face.,Fremdwörter lernen oder sich einen Namen zu einem neuen Gesicht merken.
+profile_info_asc_calc,Čistá maximální kapacita zvládnutá v Paměťovém paláci.,Pure maximum capacity mastered in the Memory Palace.,Reine maximale Kapazität die im Gedächtnispalast gemeistert wurde.
+profile_info_att_desc,Bdělost a rychlost zpracování. Jak rychle a přesně váš mozek čte situaci.,Alertness and processing speed. How fast and accurately your brain reads a situation.,Wachsamkeit und Verarbeitungsgeschwindigkeit. Wie schnell Ihr Gehirn Situationen liest.
+profile_info_att_prac,Postřeh v dopravě a čtení v rušném prostředí bez rozptylování.,Observation in traffic and reading in a busy environment without distraction.,Beobachtung im Verkehr und Lesen in geschäftiger Umgebung ohne Ablenkung.
+profile_info_att_calc,Rovnoměrně složeno ze Stroopova testu (50 %) a Dual N-Back (50 %).,Evenly composed of the Stroop test (50%) and Dual N-Back (50%).,Gleichmäßig zusammengesetzt aus dem Stroop-Test (50%) und Dual N-Back (50%).
+module_info_goal,CÍL TRÉNINKU,TRAINING GOAL,TRAININGSZIEL
+module_info_rules,JAK TRÉNOVAT,HOW TO TRAIN,WIE MAN TRAINIERT
+module_info_practice,PŘÍNOS PRO PRAXI,REAL LIFE BENEFIT,ALLTAGSNUTZEN
 dialog_exit_title,Ukončit trénink?,Exit training?,Training beenden?
 dialog_exit_body,Kognitivní růst vyžaduje konzistenci. Opravdu si přeješ aplikaci ukončit?,Cognitive growth requires consistency. Do you really want to exit the app?,Kognitives Wachstum erfordert Konsistenz. Möchtest du die App wirklich beenden?
 global_btn_stay,ZŮSTAT,STAY,BLEIBEN
@@ -16,7 +39,7 @@ settings_section_graphics,GRAFIKA A PROSTŘEDÍ,GRAPHICS & ENVIRONMENT,GRAFIK & 
 settings_dark_mode,Tmavý režim,Dark Mode,Dunkelmodus
 settings_dark_mode_on,Aktivní (Neuro-Dark),Active (Neuro-Dark),Aktiv (Neuro-Dark)
 settings_dark_mode_off,Vypnuto (Light Mode),Off (Light Mode),Aus (Heller Modus)
-settings_section_sounds,ZVUKY A HAPTIKA,SOUNDS & HAPTICS ,TÖNE & HAPTIK
+settings_section_sounds,ZVUKY A HAPTIKA,SOUNDS & HAPTICS,TÖNE & HAPTIK
 settings_mute_all,Ztlumit veškeré zvuky,Mute all sounds,Alle Töne stummschalten
 settings_volume_desc,Hlasitost pípnutí a odezvy,Volume of beeps and feedback,Lautstärke von Signaltönen und Feedback
 settings_section_language,JAZYK / LANGUAGE / SPRACHE,LANGUAGE,SPRACHE
@@ -48,12 +71,13 @@ global_btn_back,ZPĚT,BACK,ZURÜCK
 ds_title,DIGIT SPAN,DIGIT SPAN,DIGIT SPAN
 ds_interrupt_body,Kognitivní relace bude ukončena a postup nebude uložen.,The cognitive session will be terminated and progress will not be saved.,Die kognitive Sitzung wird beendet und der Fortschritt wird nicht gespeichert.
 ds_mode_fast,RYCHLÝ TEST,FAST TEST,SCHNELLTEST
-ds_mode_continuous,KONTINUÁLNÍ HRA,CONTINUOUS GAME,KONTINUIERLICHES SPIEL
+ds_mode_continuous,KONTINUÁLNÍ TRÉNINK,CONTINUOUS TRAINING,KONTINUIERLICHES TRAINING
 ds_mode_free,VOLNÝ TRÉNINK,FREE TRAINING,FREIES TRAINING
 ds_settings_title,PARAMETRY STIMULACE,STIMULATION PARAMETERS,STIMULATIONSPARAMETER
 ds_settings_dictation,Diktování,Dictation,Diktieren
 ds_settings_numbers_only,Pouze čísla,Numbers only,Nur Zahlen
 ds_settings_full_feedback,Plná vazba,Full feedback,Volles Feedback
+ds_settings_visual_only,Pouze vizuální,Visual only,Nur visuell
 ds_settings_off,Vypnuto,Off,Aus
 ds_settings_speed,Rychlost toku informací,Information flow speed,Informationsfluss-Geschwindigkeit
 global_btn_save,ULOŽIT,SAVE,SPEICHERN
@@ -196,3 +220,77 @@ global_pts,b,pts,Pkt
 settings_section_time_format,FORMÁT ČASU,TIME FORMAT,ZEITFORMAT
 settings_time_format_12h,12hodinový (AM/PM),12-hour (AM/PM),12-Stunden (AM/PM)
 settings_time_format_24h,24hodinový,24-hour,24-Stunden
+settings_about_app,O APLIKACI,ABOUT APP,ÜBER DIE APP
+about_impressum,Tiráž & Kontakt,Legal Notice & Contact,Impressum & Kontakt
+about_privacy,Ochrana osobních údajů,Privacy Policy,Datenschutzerklärung
+about_privacy_text,Aplikace neshromažďuje žádná osobní data. Veškerá vaše data a výsledky tréninku jsou ukládány výhradně lokálně ve vašem zařízení. Aplikace neobsahuje reklamy a nevyžaduje registraci a neodesílá data na žádné externí servery.,The app does not collect any personal data. All your data and training results are stored exclusively locally on your device. The app contains no ads and requires no registration and does not send data to any external servers.,Die App erhebt keine personenbezogenen Daten. Alle Ihre Daten und Trainingsergebnisse werden ausschließlich lokal auf Ihrem Gerät gespeichert. Die App enthält keine Werbung und erfordert keine Registrierung und sendet keine Daten an externe Server.
+about_developer,Vývojář:,Developer:,Entwickler:
+about_address,Adresa:,Address:,Adresse:
+about_contact,Kontakt:,Contact:,Kontakt:
+about_website,Web:,Website:,Webseite:
+about_version,Verze,Version,Version
+about_support_title,Podpořte vývoj,Support the Development,Entwicklung unterstützen
+about_support_text,Kognix je vyvíjen ve volném čase a zcela zdarma a bez reklam a bez sběru dat. Pokud vám aplikace pomáhá tak můžete její další vývoj podpořit symbolickou kávou. Děkuji!,Kognix is developed in free time and completely free of charge and with no ads and no data collection. If the app helps you then you can support its further development with a symbolic coffee. Thank you!,Kognix wird in der Freizeit entwickelt und ist völlig kostenlos und werbefrei und ohne Datenerfassung. Wenn Ihnen die App hilft dann können Sie die Weiterentwicklung mit einem symbolischen Kaffee unterstützen. Vielen Dank!
+about_btn_donate,Podpořit na Ko-fi,Support on Ko-fi,Auf Ko-fi unterstützen
+dnb_daily_goal,Denní cíl,Daily Goal,Tagesziel
+dnb_daily_progress,Dnešní skóre,Today's Score,Heutiges Ergebnis
+dnb_difficulty_increased,Obtížnost zvýšena!,Difficulty increased!,Schwierigkeit erhöht!
+calib_intro_title,Úvodní kalibrace,Initial Calibration,Anfangskalibrierung
+calib_intro_desc,Zjistěte svůj kognitivní baseline v 5 krátkých testech.,Discover your cognitive baseline in 5 short tests.,Entdecken Sie Ihre kognitive Basis in 5 kurzen Tests.
+calib_phase_1,Fáze 1/5: Rychlost a inhibice,Phase 1/5: Speed & Inhibition,Phase 1/5: Geschwindigkeit & Hemmung
+calib_stroop_desc,Vyberte barvu textu a nikoliv samotné slovo. Rychlost rozhoduje.,Select the text color and not the word itself. Speed is key.,Wählen Sie die Textfarbe und nicht das Wort. Geschwindigkeit ist entscheidend.
+calib_phase_2,Fáze 2/5: Kapacita paměti,Phase 2/5: Memory Capacity,Phase 2/5: Speicherkapazität
+calib_digit_desc,Zapamatujte si zobrazená čísla. Konec při první chybě.,Remember the displayed numbers. Ends on first mistake.,Merken Sie sich die angezeigten Zahlen. Endet beim ersten Fehler.
+calib_phase_3,Fáze 3/5: Vizuoprostorová paměť,Phase 3/5: Visuospatial Memory,Phase 3/5: Visuell-räumliches Gedächtnis
+calib_corsi_desc,Zopakujte přesnou sekvenci bloků.,Repeat the exact block sequence.,Wiederholen Sie die genaue Blocksequenz.
+calib_phase_4,Fáze 4/5: Asociativní paměť,Phase 4/5: Associative Memory,Phase 4/5: Assoziatives Gedächtnis
+calib_palace_desc,Zapamatujte si slova a určete jejich pořadí.,Memorize the words and their order.,Merken Sie sich die Wörter und ihre Reihenfolge.
+calib_phase_5,Fáze 5/5: Aktualizace,Phase 5/5: Updating,Phase 5/5: Aktualisierung
+calib_dnb_desc,Sledujte shodu pozice a zvuku (Úroveň N=1).,Watch for position and audio match (Level N=1).,Achten Sie auf Positions- und Tonübereinstimmung (Level N=1).
+calib_btn_next,Spustit test,Start Test,Test starten
+calib_done_title,Kalibrace dokončena!,Calibration Complete!,Kalibrierung abgeschlossen!
+calib_done_desc,Váš kognitivní baseline byl úspěšně vypočítán.,Your cognitive baseline has been successfully calculated.,Ihre kognitive Basis wurde erfolgreich berechnet.
+calib_btn_finish,Zobrazit můj profil,View My Profile,Mein Profil anzeigen
+calib_palace_w1,Sova,Owl,Eule
+calib_palace_w2,Vlak,Train,Zug
+calib_palace_w3,Mrak,Cloud,Wolke
+calib_palace_w4,Kytara,Guitar,Gitarre
+calib_palace_w5,Strom,Tree,Baum
+calib_palace_loc,Lokace,Location,Ort
+calib_palace_question,Co bylo na lokaci {},What was at location {},Was war an der Stelle {}
+profile_title,KOGNITIVNÍ PROFIL,COGNITIVE PROFILE,KOGNITIVES PROFIL
+profile_wm,Pracovní\npaměť,Working\nMemory,Arbeits-\ngedächtnis
+profile_vs,Vizuoprostorová\norientace,Visuospatial\nOrientation,Visuell-räumliche\nOrientierung
+profile_exe,Exekutivní\nkontrola,Executive\nControl,Exekutive\nKontrolle
+profile_asc,Asociativní\npaměť,Associative\nMemory,Assoziatives\nGedächtnis
+profile_att,Rychlost a\npozornost,Speed &\nAttention,Geschwindigkeit &\nAufmerksamkeit
+profile_kci_title,CELKOVÝ KCI INDEX,OVERALL KCI INDEX,GESAMTER KCI-INDEX
+profile_kci_subtitle,Kognix Cognitive Index,Kognix Cognitive Index,Kognix Cognitive Index
+profile_stat_wm,Pracovní paměť,Working Memory,Arbeitsgedächtnis
+profile_stat_vs,Vizuoprostorová orientace,Visuospatial Orientation,Visuell-räumliche Orientierung
+profile_stat_exe,Exekutivní kontrola (Inhibice),Executive Control (Inhibition),Exekutive Kontrolle (Hemmung)
+profile_stat_asc,Asociativní paměť,Associative Memory,Assoziatives Gedächtnis
+profile_stat_att,Rychlost a pozornost,Speed and Attention,Geschwindigkeit und Aufmerksamkeit
+profile_debug_reset,DEBUG: Smazat data a opakovat kalibraci,DEBUG: Delete data and repeat calibration,DEBUG: Daten löschen und Kalibrierung wiederholen
+menu_profile_title,Kognitivní profil,Cognitive Profile,Kognitives Profil
+menu_profile_btn,Zobrazit detail,View Detail,Detail anzeigen
+calib_palace_learn,Zapamatuj si dvojici:,Remember the pair:,Merk dir das Paar:
+calib_palace_test,Co patří k tomuto symbolu?,What belongs to this symbol?,Was gehört zu diesem Symbol?
+ds_settings_gamification,Gamifikace,Gamification,Gamification
+ds_settings_gamification_desc,Rámečky a vizuální efekty,Frames and visual effects,Rahmen und visuelle Effekte
+ds_settings_fast_start,Počáteční úroveň (Rychlý test),Fast Test Starting Level,Startlevel (Schnelltest)
+ds_info_goal_desc,Zvýšení kapacity pracovní paměti a schopnosti mentální manipulace s daty.,Increase working memory capacity and the ability to mentally manipulate data.,Erhöhung der Arbeitsgedächtniskapazität und der Fähigkeit zur mentalen Datenmanipulation.
+ds_info_rules_desc,Zapamatujte si zobrazenou sekvenci čísel a zadejte ji zpět podle zvoleného módu (přímo nebo pozpátku).,Memorize the displayed sequence of numbers and enter it back according to the selected mode (forward or reverse).,Merken Sie sich die angezeigte Zahlenfolge und geben Sie sie entsprechend dem gewählten Modus (vorwärts oder rückwärts) ein.
+ds_info_prac_desc,Lepší soustředění při konverzaci a udržení čísel v hlavě (např. při opisování kódů).,Better focus during conversation and keeping numbers in your head (e.g. when copying codes).,Bessere Konzentration bei Gesprächen und das Behalten von Zahlen im Kopf (z. B. beim Abschreiben von Codes).
+dnb_info_goal_desc,Zvýšení kapacity plynulé aktualizace pracovní paměti a dělené pozornosti.,Increase the capacity of continuous working memory updating and divided attention.,Erhöhung der Kapazität der kontinuierlichen Arbeitsgedächtnisaktualisierung und geteilten Aufmerksamkeit.
+dnb_info_rules_desc,Sledujte mřížku a poslouchejte písmena. Stiskněte tlačítko pokud se aktuální pozice nebo zvuk shoduje s tím před N kroky.,Watch the grid and listen to the letters. Press the button if the current position or sound matches the one N steps back.,Beobachten Sie das Raster und hören Sie auf die Buchstaben. Drücken Sie die Taste wenn die aktuelle Position oder der Ton mit dem vor N Schritten übereinstimmt.
+dnb_info_prac_desc,Filtrování rušivých vlivů udržení více informací najednou a plynulé řešení složitých problémů.,Filtering out distractions keeping multiple pieces of information at once and fluidly solving complex problems.,Ausblenden von Ablenkungen das gleichzeitige Behalten mehrerer Informationen und das flüssige Lösen komplexer Probleme.
+ecorsi_info_goal_desc,Zvýšení kapacity vizuoprostorové paměti a prostorové orientace.,Increase visuospatial memory capacity and orientation.,Erhöhung der visuell-räumlichen Gedächtniskapazität und Orientierung.
+ecorsi_info_rules_desc,Sledujte rozsvěcující se bloky a zopakujte jejich přesné pořadí (přímo nebo inverzně).,Watch the lighting blocks and repeat their exact sequence (forward or reverse).,Beobachten Sie die aufleuchtenden Blöcke und wiederholen Sie ihre genaue Reihenfolge (vorwärts oder rückwärts).
+ecorsi_info_prac_desc,Orientace v novém prostoru a zapamatování si cesty nebo rozložení věcí na stole.,Navigating in a new space and remembering a route or the layout of things on a desk.,Orientierung in einem neuen Raum und das Merken eines Weges oder der Anordnung von Dingen auf dem Schreibtisch.
+palace_info_goal_desc,Zvýšení kapacity asociativní paměti a schopnosti vizualizace.,Increase associative memory capacity and visualization skills.,Erhöhung der assoziativen Gedächtniskapazität und der Visualisierungsfähigkeiten.
+palace_info_rules_desc,Propojte v mysli zobrazený předmět s danou místností v paláci. Následně si vzpomeňte co kde bylo.,Mentally link the displayed object to the given room in the palace. Then recall what was where.,Verknüpfen Sie das angezeigte Objekt im Geiste mit dem Raum im Palast. Erinnern Sie sich dann was wo war.
+palace_info_prac_desc,Učení cizích slovíček jmen nových lidí nebo příprava na zkoušky.,Learning foreign vocabulary names of new people or preparing for exams.,Fremdvokabeln Namen neuer Personen lernen oder sich auf Prüfungen vorbereiten.
+stroop_info_goal_desc,Zvýšení exekutivní kontroly a schopnosti ignorovat rušivé vlivy.,Increase executive control and the ability to ignore distracting stimuli.,Erhöhung der exekutiven Kontrolle und der Fähigkeit störende Reize zu ignorieren.
+stroop_info_rules_desc,Vyberte barvu jakou je slovo napsáno a ignorujte jeho textový význam.,Select the color the word is written in and ignore its text meaning.,Wählen Sie die Farbe in der das Wort geschrieben ist und ignorieren Sie seine Textbedeutung.
+stroop_info_prac_desc,Udržení pozornosti v rušném prostředí a rychlé rozhodování pod tlakem.,Maintaining attention in a noisy environment and quick decision making under pressure.,Aufrechterhaltung der Aufmerksamkeit in lauter Umgebung und schnelle Entscheidungsfindung unter Druck.

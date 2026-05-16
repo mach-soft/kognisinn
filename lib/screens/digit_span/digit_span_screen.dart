@@ -1,7 +1,9 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../bloc/digit_span/digit_span_bloc.dart';
 import '../../bloc/digit_span/digit_span_event.dart';
@@ -9,6 +11,63 @@ import '../../bloc/digit_span/digit_span_state.dart';
 
 class DigitSpanScreen extends StatelessWidget {
   const DigitSpanScreen({super.key});
+
+  Future<void> _saveTestToHistory(double newResult) async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    List<String> dailyHistory = prefs.getStringList('ds_daily_history') ?? [];
+    Map<String, double> dailyMaxes = {};
+
+    for (var entry in dailyHistory) {
+      final parts = entry.split('|');
+      if (parts.length == 2) {
+        dailyMaxes[parts[0]] = double.tryParse(parts[1]) ?? 0.0;
+      }
+    }
+
+    if (dailyMaxes.containsKey(today)) {
+      if (newResult > dailyMaxes[today]!) {
+        dailyMaxes[today] = newResult;
+      }
+    } else {
+      dailyMaxes[today] = newResult;
+    }
+
+    var sortedKeys = dailyMaxes.keys.toList()..sort();
+    if (sortedKeys.length > 10) {
+      sortedKeys = sortedKeys.sublist(sortedKeys.length - 10);
+    }
+
+    List<String> newHistoryToSave = [];
+    List<double> valuesForMedian = [];
+
+    for (var key in sortedKeys) {
+      newHistoryToSave.add('$key|${dailyMaxes[key]}');
+      valuesForMedian.add(dailyMaxes[key]!);
+    }
+
+    await prefs.setStringList('ds_daily_history', newHistoryToSave);
+
+    valuesForMedian.sort();
+    double median = 0.0;
+    int length = valuesForMedian.length;
+    if (length > 0) {
+      if (length % 2 == 1) {
+        median = valuesForMedian[length ~/ 2];
+      } else {
+        median = (valuesForMedian[(length ~/ 2) - 1] + valuesForMedian[length ~/ 2]) / 2;
+      }
+    }
+
+    await prefs.setDouble('metric_digit_span', median);
+    await prefs.setInt('validity_digit_span', length);
+
+    List<String> rawHistory = prefs.getStringList('history_digit_span') ?? [];
+    rawHistory.add(newResult.toString());
+    if (rawHistory.length > 50) rawHistory.removeAt(0);
+    await prefs.setStringList('history_digit_span', rawHistory);
+  }
 
   Future<bool> _showInterruptDialog(BuildContext context, bool isDark) async {
     return await showDialog<bool>(
@@ -26,6 +85,61 @@ class DigitSpanScreen extends StatelessWidget {
     ) ?? false;
   }
 
+  // --- NOVÁ FUNKCE PRO VYSVĚTLUJÍCÍ DIALOG K MODULU ---
+  void _showModuleInfoDialog(BuildContext context, bool isDark, Color accent) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E1E2C) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.psychology_rounded, color: accent),
+            const SizedBox(width: 10),
+            Expanded(child: Text('ds_title'.tr(), style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold))),
+          ],
+        ),
+        content: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildDialogSection('module_info_goal'.tr(), 'ds_info_goal_desc'.tr(), Icons.track_changes_rounded, accent, isDark),
+              const SizedBox(height: 16),
+              _buildDialogSection('module_info_rules'.tr(), 'ds_info_rules_desc'.tr(), Icons.rule_rounded, Colors.orangeAccent, isDark),
+              const SizedBox(height: 16),
+              _buildDialogSection('module_info_practice'.tr(), 'ds_info_prac_desc'.tr(), Icons.lightbulb_outline_rounded, const Color(0xFF00E676), isDark),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('OK', style: TextStyle(color: accent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDialogSection(String title, String content, IconData icon, Color color, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 8),
+            Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color, letterSpacing: 1.2)),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(content, style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.black87, height: 1.4)),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
@@ -34,8 +148,19 @@ class DigitSpanScreen extends StatelessWidget {
 
     return BlocProvider(
       create: (context) => DigitSpanBloc()..add(InitializeHardwareEvent()),
-      child: BlocBuilder<DigitSpanBloc, DigitSpanState>(
+      child: BlocConsumer<DigitSpanBloc, DigitSpanState>(
+        listenWhen: (previous, current) {
+          return previous.phase != GamePhase.gameOver && current.phase == GamePhase.gameOver;
+        },
+        listener: (context, state) async {
+          if (state.gameType == GameType.fastTest) {
+            double finalScore = (state.sequenceLength - 1).toDouble();
+            await _saveTestToHistory(finalScore);
+          }
+        },
         builder: (context, state) {
+          bool showBackgroundEffects = state.isEmphaticMode && state.isGamificationEnabled && state.gameType == GameType.gameMode;
+
           // ignore: deprecated_member_use
           return WillPopScope(
             onWillPop: () async {
@@ -52,8 +177,19 @@ class DigitSpanScreen extends StatelessWidget {
               }
             },
             child: Scaffold(
-              body: Container(
-                decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [bgTop, bgBottom])),
+              body: AnimatedContainer(
+                duration: const Duration(milliseconds: 500),
+                decoration: BoxDecoration(
+                  border: showBackgroundEffects
+                      ? Border.all(color: const Color(0xFF00E5FF), width: 4)
+                      : Border.all(color: Colors.transparent, width: 4),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter, end: Alignment.bottomCenter, 
+                    colors: showBackgroundEffects
+                        ? [isDark ? const Color(0xFF101B2B) : const Color(0xFFE0F7FA), bgBottom]
+                        : [bgTop, bgBottom]
+                  )
+                ),
                 child: SafeArea(
                   child: state.phase == GamePhase.splash
                       ? _buildSplash(context)
@@ -116,11 +252,37 @@ class DigitSpanScreen extends StatelessWidget {
           physics: const BouncingScrollPhysics(),
           child: Column(
             children: [
-              // NOVÁ VELKÁ IKONA V MENU MODULU
-              Icon(Icons.onetwothree_rounded, size: 80, color: isDark ? const Color(0xFF00E5FF).withAlpha(150) : const Color(0xFF7000FF).withAlpha(150)),
-              const SizedBox(height: 40),
+              // --- UPRAVENÁ HLAVNÍ IKONA S TLAČÍTKEM NÁPOVĚDY ---
+              Stack(
+                alignment: Alignment.topRight,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    child: Icon(Icons.onetwothree_rounded, size: 80, color: accent.withAlpha(150)),
+                  ),
+                  Positioned(
+                    top: 0, right: 0,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () => _showModuleInfoDialog(context, isDark, accent),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: accent.withAlpha(20),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: accent.withAlpha(50)),
+                          ),
+                          child: Icon(Icons.help_outline_rounded, size: 20, color: accent),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 30),
               
-              // ZDE JSOU APLIKOVÁNY ÚPRAVY: Tlačítka nyní odesílají i informaci o jazyku
               _menuBtn(context, 'ds_mode_fast'.tr(), () {
                 context.read<DigitSpanBloc>().add(SetLanguageEvent(context.locale.languageCode));
                 context.read<DigitSpanBloc>().add(const SelectGameTypeEvent(GameType.fastTest));
@@ -154,29 +316,73 @@ class DigitSpanScreen extends StatelessWidget {
             children: [
               Text('ds_settings_title'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2)),
               const SizedBox(height: 30),
+              
               ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  children: [
+                    Text('ds_settings_gamification'.tr(), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: accent.withAlpha(20),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: accent.withAlpha(40)),
+                      ),
+                      child: Text('ds_mode_continuous'.tr().toUpperCase(), style: TextStyle(fontSize: 8, color: accent, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                    ),
+                  ],
+                ),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 4.0),
+                  child: Text('ds_settings_gamification_desc'.tr(), style: TextStyle(fontSize: 11, color: isDark ? Colors.white38 : Colors.black38)),
+                ),
+                trailing: Switch(
+                  value: state.isGamificationEnabled,
+                  activeThumbColor: accent,
+                  onChanged: (val) {
+                    context.read<DigitSpanBloc>().add(ToggleGamificationEvent(val));
+                  },
+                ),
+              ),
+              const Divider(color: Colors.white12),
+              
+              ListTile(
+                contentPadding: EdgeInsets.zero,
                 title: Text('ds_settings_dictation'.tr(), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
                 trailing: DropdownButton<SoundSetting>(
                   dropdownColor: isDark ? const Color(0xFF1A1A2E) : Colors.white,
-                  value: state.soundSetting,
+                  value: state.soundSetting == SoundSetting.numbersOnly ? SoundSetting.off : state.soundSetting,
                   style: TextStyle(color: accent, fontWeight: FontWeight.bold),
                   underline: const SizedBox(),
                   onChanged: (val) => context.read<DigitSpanBloc>().add(ChangeSettingsEvent(sound: val)),
                   items: [
-                    DropdownMenuItem(value: SoundSetting.numbersOnly, child: Text("ds_settings_numbers_only".tr())),
+                    DropdownMenuItem(value: SoundSetting.off, child: Text("ds_settings_visual_only".tr())),
                     DropdownMenuItem(value: SoundSetting.numbersAndFeedback, child: Text("ds_settings_full_feedback".tr())),
-                    DropdownMenuItem(value: SoundSetting.off, child: Text("ds_settings_off".tr()))
                   ],
                 ),
               ),
               const Divider(color: Colors.white12),
               const SizedBox(height: 10),
+              
               Text('ds_settings_speed'.tr(), style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black54, fontWeight: FontWeight.bold)),
               Slider(
                 activeColor: accent,
                 value: state.speedFactor, min: 0.5, max: 1.5, divisions: 10,
                 onChanged: (val) => context.read<DigitSpanBloc>().add(ChangeSettingsEvent(speed: val)),
               ),
+              const Divider(color: Colors.white12),
+              const SizedBox(height: 10),
+              
+              Text('${'ds_settings_fast_start'.tr()}: ${state.fastTestStartingLevel}', style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black54, fontWeight: FontWeight.bold)),
+              Slider(
+                activeColor: accent,
+                value: state.fastTestStartingLevel.toDouble(), min: 3, max: 12, divisions: 9,
+                onChanged: (val) => context.read<DigitSpanBloc>().add(ChangeSettingsEvent(fastStartLevel: val.toInt())),
+              ),
+              
               const SizedBox(height: 30),
               _menuBtn(context, 'global_btn_save'.tr(), () => context.read<DigitSpanBloc>().add(ReturnToMenuEvent()), isDark, isPrimary: true),
             ],
@@ -231,17 +437,47 @@ class DigitSpanScreen extends StatelessWidget {
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              decoration: BoxDecoration(color: accent.withAlpha(20), borderRadius: BorderRadius.circular(16), border: Border.all(color: accent.withAlpha(40))),
-              child: Text('ds_status_info'.tr(args: [_translateMode(state.gameMode).toUpperCase(), state.sequenceLength.toString()]),
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2)),
-            ),
+            if (state.isGamificationEnabled && state.gameType == GameType.gameMode) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                decoration: BoxDecoration(color: accent.withAlpha(20), borderRadius: BorderRadius.circular(16), border: Border.all(color: accent.withAlpha(40))),
+                child: Text('ds_status_info'.tr(args: [_translateMode(state.gameMode).toUpperCase(), state.sequenceLength.toString()]),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2)),
+              ),
+              if (state.consecutiveSuccesses >= 5) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.orangeAccent.withAlpha(30),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orangeAccent.withAlpha(50)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.local_fire_department_rounded, color: Colors.orangeAccent, size: 18),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Úspěchů v řadě: ${state.consecutiveSuccesses}',
+                        style: const TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
             const SizedBox(height: 60),
             Text(
               state.currentlyDisplayedDigit,
               key: ValueKey(state.currentlyDisplayedDigit),
-              style: TextStyle(fontSize: 160, fontWeight: FontWeight.w900, color: textColor, shadows: [Shadow(color: accent.withAlpha(150), blurRadius: 30)]),
+              style: TextStyle(
+                fontSize: 160, 
+                fontWeight: FontWeight.w900, 
+                color: textColor, 
+                shadows: state.isEmphaticMode && state.isGamificationEnabled && state.gameType == GameType.gameMode 
+                    ? [Shadow(color: accent.withAlpha(150), blurRadius: 30)] : []
+              ),
             ),
             const SizedBox(height: 80),
           ],
@@ -257,7 +493,31 @@ class DigitSpanScreen extends StatelessWidget {
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('ds_phase_reconstruct'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 4)),
+            if (state.isGamificationEnabled && state.gameType == GameType.gameMode) ...[
+              Text('ds_phase_reconstruct'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 4)),
+              if (state.consecutiveSuccesses >= 5) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.orangeAccent.withAlpha(30),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orangeAccent.withAlpha(50)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.local_fire_department_rounded, color: Colors.orangeAccent, size: 18),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Úspěchů v řadě: ${state.consecutiveSuccesses}',
+                        style: const TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
             const SizedBox(height: 20),
             FittedBox(
               fit: BoxFit.scaleDown,
@@ -323,26 +583,24 @@ class DigitSpanScreen extends StatelessWidget {
                         _scBadge('ds_badge_nback'.tr(), state.highScores[GameMode.nback] ?? 0, accent, isDark),
                       ],
                     ),
-                    const Divider(color: Colors.white12, height: 40),
+                    const Divider(color: Colors.white12, height: 24),
                     Expanded(
-                      child: state.resultsHistory.isEmpty
-                          ? Center(child: Text('global_no_data'.tr(), style: TextStyle(color: isDark ? Colors.white38 : Colors.black38)))
-                          : ListView.builder(
-                              physics: const BouncingScrollPhysics(),
-                              itemCount: state.resultsHistory.length,
-                              itemBuilder: (context, index) {
-                                final res = state.resultsHistory.reversed.toList()[index];
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 10),
-                                  decoration: BoxDecoration(color: isDark ? Colors.white.withAlpha(10) : Colors.black.withAlpha(5), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white10)),
-                                  child: ListTile(
-                                    leading: Icon(res.isCorrect ? Icons.check_circle_rounded : Icons.cancel_rounded, color: res.isCorrect ? const Color(0xFF00E676) : Colors.redAccent),
-                                    title: Text('${_translateMode(res.mode)} | N=${res.level}', style: TextStyle(color: textColor, fontWeight: FontWeight.w900, fontSize: 13)),
-                                    subtitle: Text('${res.timestamp.day}.${res.timestamp.month}. v ${res.timestamp.hour}:${res.timestamp.minute.toString().padLeft(2, '0')}', style: TextStyle(color: isDark ? Colors.white38 : Colors.black38, fontSize: 11)),
-                                  ),
-                                );
-                              },
-                            ),
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: Column(
+                          children: [
+                            if (state.resultsHistory.isEmpty)
+                              Center(child: Padding(
+                                padding: const EdgeInsets.only(top: 20.0),
+                                child: Text('global_no_data'.tr(), style: TextStyle(color: isDark ? Colors.white38 : Colors.black38)),
+                              )),
+                            _buildContinuousGraph(context, state, GameMode.forward, isDark, accent),
+                            _buildContinuousGraph(context, state, GameMode.reverse, isDark, accent),
+                            _buildContinuousGraph(context, state, GameMode.ascending, isDark, accent),
+                            _buildContinuousGraph(context, state, GameMode.nback, isDark, accent),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -356,6 +614,98 @@ class DigitSpanScreen extends StatelessWidget {
 
       default: return const Center(child: CircularProgressIndicator());
     }
+  }
+
+  Widget _buildContinuousGraph(BuildContext context, DigitSpanState state, GameMode mode, bool isDark, Color accent) {
+    List<GameResult> modeHistory = state.resultsHistory.where((e) => e.mode == mode).toList();
+    if (modeHistory.isEmpty) return const SizedBox.shrink();
+
+    int n = modeHistory.length;
+
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double availableWidth = screenWidth - 182.0; 
+    final double maxCanvasWidth = availableWidth * 2.0;
+
+    double canvasWidth;
+    double pointSpacing;
+
+    double spacingToFitOneScreen = availableWidth / (n > 0 ? n : 1);
+
+    if (spacingToFitOneScreen >= 25.0) {
+      canvasWidth = availableWidth;
+      pointSpacing = spacingToFitOneScreen;
+    } else {
+      double requiredWidth = n * 25.0;
+      if (requiredWidth <= maxCanvasWidth) {
+        canvasWidth = requiredWidth;
+        pointSpacing = 25.0;
+      } else {
+        canvasWidth = maxCanvasWidth;
+        pointSpacing = maxCanvasWidth / n;
+      }
+    }
+
+    bool isScrollable = canvasWidth > availableWidth + 2.0; 
+    bool showDetails = pointSpacing >= 12.0; 
+
+    int maxLevel = 1;
+    for (var res in modeHistory) {
+      if (res.level > maxLevel) maxLevel = res.level;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withAlpha(5) : accent.withAlpha(5),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: isDark ? Colors.white12 : accent.withAlpha(20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(_translateMode(mode).toUpperCase(), style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white70 : const Color(0xFF1E293B))),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              SizedBox(
+                width: 24,
+                height: 120,
+                child: CustomPaint(
+                  painter: _YScalePainter(
+                    maxLevel: maxLevel,
+                    textColor: isDark ? Colors.white54 : Colors.black54,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: SizedBox(
+                  height: 120,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: isScrollable ? const BouncingScrollPhysics() : const NeverScrollableScrollPhysics(),
+                    child: SizedBox(
+                      width: canvasWidth, 
+                      child: CustomPaint(
+                        painter: _LineChartPainter(
+                          history: modeHistory,
+                          maxLevel: maxLevel,
+                          accent: accent,
+                          isDark: isDark,
+                          pointSpacing: pointSpacing,
+                          showDetails: showDetails,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildStatusMessage(String text, IconData icon, Color color, bool isDark) {
@@ -499,5 +849,127 @@ class DigitSpanScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _YScalePainter extends CustomPainter {
+  final int maxLevel;
+  final Color textColor;
+
+  _YScalePainter({required this.maxLevel, required this.textColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final textStyle = TextStyle(color: textColor, fontSize: 11, fontWeight: FontWeight.bold);
+
+    void drawText(String text, double y) {
+      final tp = TextPainter(text: TextSpan(text: text, style: textStyle), textDirection: ui.TextDirection.ltr);
+      tp.layout();
+      tp.paint(canvas, Offset(size.width - tp.width, y - tp.height / 2));
+    }
+
+    drawText('$maxLevel', 15);
+    
+    if (maxLevel > 2) {
+      int mid = ((maxLevel + 1) / 2).floor();
+      double normMid = (mid - 1) / (maxLevel - 1);
+      double yMid = 15 + (1 - normMid) * (size.height - 30);
+      drawText('$mid', yMid);
+    }
+    
+    drawText('1', size.height - 15);
+  }
+
+  @override
+  bool shouldRepaint(covariant _YScalePainter oldDelegate) {
+    return oldDelegate.maxLevel != maxLevel;
+  }
+}
+
+class _LineChartPainter extends CustomPainter {
+  final List<GameResult> history;
+  final int maxLevel;
+  final Color accent;
+  final bool isDark;
+  final double pointSpacing;
+  final bool showDetails;
+
+  _LineChartPainter({
+    required this.history,
+    required this.maxLevel,
+    required this.accent,
+    required this.isDark,
+    required this.pointSpacing,
+    required this.showDetails,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (history.isEmpty) return;
+
+    final gridPaint = Paint()
+      ..color = isDark ? Colors.white.withAlpha(20) : Colors.black.withAlpha(10)
+      ..strokeWidth = 1.0;
+
+    canvas.drawLine(const Offset(0, 15), Offset(size.width, 15), gridPaint);
+    canvas.drawLine(Offset(0, size.height - 15), Offset(size.width, size.height - 15), gridPaint);
+    
+    if (maxLevel > 2) {
+      int mid = ((maxLevel + 1) / 2).floor();
+      double normMid = (mid - 1) / (maxLevel - 1);
+      double yMid = 15 + (1 - normMid) * (size.height - 30);
+      canvas.drawLine(Offset(0, yMid), Offset(size.width, yMid), gridPaint);
+    }
+
+    final linePaint = Paint()
+      ..color = accent.withAlpha(showDetails ? 150 : 255)
+      ..strokeWidth = showDetails ? 3.0 : 4.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final double heightCalc = size.height - 30;
+    List<Offset> points = [];
+
+    for (int i = 0; i < history.length; i++) {
+      final res = history[i];
+      double normalizedY = maxLevel > 1 ? (res.level - 1) / (maxLevel - 1) : 0.5;
+      
+      double y = 15 + (1 - normalizedY) * (heightCalc);
+      double x = (pointSpacing / 2) + (i * pointSpacing);
+      points.add(Offset(x, y));
+    }
+
+    final path = Path();
+    if (points.isNotEmpty) {
+      path.moveTo(points[0].dx, points[0].dy);
+      for (int i = 1; i < points.length; i++) {
+        path.lineTo(points[i].dx, points[i].dy);
+      }
+      canvas.drawPath(path, linePaint);
+    }
+
+    if (showDetails) {
+      for (int i = 0; i < points.length; i++) {
+        final res = history[i];
+        final dotColor = res.isCorrect ? const Color(0xFF00E676) : Colors.redAccent;
+        
+        final dotPaint = Paint()..color = dotColor..style = PaintingStyle.fill;
+        final borderPaint = Paint()
+          ..color = isDark ? const Color(0xFF1E1E2C) : Colors.white
+          ..strokeWidth = 2
+          ..style = PaintingStyle.stroke;
+
+        canvas.drawCircle(points[i], 6, dotPaint);
+        canvas.drawCircle(points[i], 6, borderPaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _LineChartPainter oldDelegate) {
+    return oldDelegate.history != history || 
+           oldDelegate.maxLevel != maxLevel ||
+           oldDelegate.showDetails != showDetails ||
+           oldDelegate.pointSpacing != pointSpacing;
   }
 }

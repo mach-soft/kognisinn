@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -63,10 +64,34 @@ class StroopBloc extends Bloc<StroopEvent, StroopState> {
     List<int> newTimes = List.from(state.currentReactionTimesMs)..add(elapsed);
 
     if (state.currentRound >= state.totalRounds) {
-      newTimes.sort();
-      double sessionMedian = newTimes[newTimes.length ~/ 2] / 1000.0;
       
-      final newItem = StroopHistoryItem(DateTime.now(), newScore, state.totalRounds, sessionMedian, state.activeGameType);
+      // === VĚDECKÁ FILTRACE OUTLIERŮ (2 SD) ===
+      
+      // 1. Výpočet průměru (Mean)
+      double mean = newTimes.reduce((a, b) => a + b) / newTimes.length;
+
+      // 2. Výpočet směrodatné odchylky (Standard Deviation)
+      double variance = newTimes.map((t) => pow(t - mean, 2)).reduce((a, b) => a + b) / newTimes.length;
+      double sd = sqrt(variance);
+
+      // 3. Filtrace - odstranění hodnot ležících mimo hranici 2 SD
+      List<int> validTimes = newTimes.where((t) => (t - mean).abs() <= 2 * sd).toList();
+      
+      // Záchranná síť pro případ extrémně malého/anomálního vzorku
+      if (validTimes.isEmpty) validTimes = newTimes;
+
+      // 4. Výpočet robustního mediánu z očištěných dat
+      validTimes.sort();
+      int mid = validTimes.length ~/ 2;
+      double robustMedianMs = validTimes.length % 2 != 0 
+          ? validTimes[mid].toDouble() 
+          : (validTimes[mid - 1] + validTimes[mid]) / 2.0;
+      
+      double sessionRobustMedian = robustMedianMs / 1000.0;
+      
+      // ==========================================
+
+      final newItem = StroopHistoryItem(DateTime.now(), newScore, state.totalRounds, sessionRobustMedian, state.activeGameType);
       final newHistory = List<StroopHistoryItem>.from(state.history)..add(newItem);
       
       _prefs?.setStringList('stroop_history', newHistory.map((e) => e.toRawString()).toList());
@@ -90,10 +115,10 @@ class StroopBloc extends Bloc<StroopEvent, StroopState> {
     String correct = '';
 
     if (state.activeGameType == StroopGameType.standard) {
-      options = List.from(names)..shuffle();
+      options = List.from(names); // ODSTRANĚNO .shuffle() - Fixní rozložení kláves
       correct = inkName;
     } else if (state.activeGameType == StroopGameType.reverse) {
-      options = List.from(names)..shuffle();
+      options = List.from(names); // ODSTRANĚNO .shuffle() - Fixní rozložení kláves
       correct = word;
     } else {
       options = ['PRAVDA', 'NEPRAVDA'];

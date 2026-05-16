@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:intl/intl.dart'; // SCHVÁLNĚ ODSTRANĚNO (zajišťuje easy_localization)
 import '../../bloc/e_corsi/e_corsi_bloc.dart';
 
 class ECorsiScreen extends StatelessWidget {
@@ -11,6 +13,67 @@ class ECorsiScreen extends StatelessWidget {
     Alignment(-0.6, -0.2), Alignment(0.3, -0.1), Alignment(-0.9, 0.4),
     Alignment(-0.1, 0.7), Alignment(0.6, 0.8), Alignment(0.9, 0.2),
   ];
+
+  // --- FUNKCE: EXPORT DO KOGNITIVNÍHO PROFILU ---
+  Future<void> _saveTestToProfile(double newScore) async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    List<String> dailyHistory = prefs.getStringList('ecorsi_daily_history') ?? [];
+    Map<String, double> dailyMaxes = {};
+
+    for (var entry in dailyHistory) {
+      final parts = entry.split('|');
+      if (parts.length == 2) {
+        dailyMaxes[parts[0]] = double.tryParse(parts[1]) ?? 0.0;
+      }
+    }
+
+    if (dailyMaxes.containsKey(today)) {
+      if (newScore > dailyMaxes[today]!) {
+        dailyMaxes[today] = newScore;
+      }
+    } else {
+      dailyMaxes[today] = newScore;
+    }
+
+    var sortedKeys = dailyMaxes.keys.toList()..sort();
+    if (sortedKeys.length > 10) {
+      sortedKeys = sortedKeys.sublist(sortedKeys.length - 10);
+    }
+
+    List<String> newHistoryToSave = [];
+    List<double> valuesForMedian = [];
+
+    for (var key in sortedKeys) {
+      newHistoryToSave.add('$key|${dailyMaxes[key]}');
+      valuesForMedian.add(dailyMaxes[key]!);
+    }
+
+    await prefs.setStringList('ecorsi_daily_history', newHistoryToSave);
+
+    valuesForMedian.sort();
+    double median = 0.0;
+    int length = valuesForMedian.length;
+    if (length > 0) {
+      if (length % 2 == 1) {
+        median = valuesForMedian[length ~/ 2];
+      } else {
+        median = (valuesForMedian[(length ~/ 2) - 1] + valuesForMedian[length ~/ 2]) / 2;
+      }
+    }
+
+    await prefs.setDouble('metric_visuospatial', median);
+    await prefs.setInt('validity_visuospatial', length);
+  }
+
+  Future<void> _saveTestToHistory(String historyKey, double newResult) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> history = prefs.getStringList(historyKey) ?? [];
+    history.add(newResult.toString());
+    if (history.length > 50) history.removeAt(0); 
+    await prefs.setStringList(historyKey, history);
+  }
 
   Future<bool> _showInterruptDialog(BuildContext context, bool isDark) async {
     return await showDialog<bool>(
@@ -28,6 +91,61 @@ class ECorsiScreen extends StatelessWidget {
     ) ?? false;
   }
 
+  // --- NOVÁ FUNKCE PRO VYSVĚTLUJÍCÍ DIALOG K MODULU ---
+  void _showModuleInfoDialog(BuildContext context, bool isDark, Color accent) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E1E2C) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.psychology_rounded, color: accent),
+            const SizedBox(width: 10),
+            Expanded(child: Text('ecorsi_title'.tr(), style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold))),
+          ],
+        ),
+        content: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildDialogSection('module_info_goal'.tr(), 'ecorsi_info_goal_desc'.tr(), Icons.track_changes_rounded, accent, isDark),
+              const SizedBox(height: 16),
+              _buildDialogSection('module_info_rules'.tr(), 'ecorsi_info_rules_desc'.tr(), Icons.rule_rounded, Colors.orangeAccent, isDark),
+              const SizedBox(height: 16),
+              _buildDialogSection('module_info_practice'.tr(), 'ecorsi_info_prac_desc'.tr(), Icons.lightbulb_outline_rounded, const Color(0xFF00E676), isDark),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('OK', style: TextStyle(color: accent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDialogSection(String title, String content, IconData icon, Color color, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 8),
+            Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color, letterSpacing: 1.2)),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(content, style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.black87, height: 1.4)),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
@@ -36,9 +154,17 @@ class ECorsiScreen extends StatelessWidget {
 
     return BlocProvider(
       create: (context) => ECorsiBloc(),
-      child: BlocBuilder<ECorsiBloc, ECorsiState>(
+      child: BlocConsumer<ECorsiBloc, ECorsiState>(
+        listenWhen: (previous, current) {
+          return previous.phase != ECorsiPhase.result && current.phase == ECorsiPhase.result;
+        },
+        listener: (context, state) async {
+          await _saveTestToHistory('history_ecorsi', state.currentSpan.toDouble());
+          if (state.mode == ECorsiMode.forward) {
+            await _saveTestToProfile(state.currentSpan.toDouble());
+          }
+        },
         builder: (context, state) {
-          // OPRAVA PRO SAMSUNG: WillPopScope
           // ignore: deprecated_member_use
           return WillPopScope(
             onWillPop: () async {
@@ -60,7 +186,6 @@ class ECorsiScreen extends StatelessWidget {
                 child: SafeArea(
                   child: Column(
                     children: [
-                      // Přidáno state pro dynamické skrývání
                       _buildHeader(isDark, state),
                       Expanded(child: _buildBody(context, state, isDark)),
                     ],
@@ -75,7 +200,6 @@ class ECorsiScreen extends StatelessWidget {
   }
 
   Widget _buildHeader(bool isDark, ECorsiState state) {
-    // Schováme hlavičku při samotném hraní a vyťukávání
     if (state.phase == ECorsiPhase.showing || state.phase == ECorsiPhase.input) {
       return const SizedBox(height: 20);
     }
@@ -88,7 +212,6 @@ class ECorsiScreen extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // PŘIDÁNA IKONA DO HLAVIČKY
               const Icon(Icons.apps_rounded, color: Colors.white, size: 36),
               const SizedBox(width: 12),
               Text('ecorsi_title'.tr(), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 4)),
@@ -199,15 +322,40 @@ class ECorsiScreen extends StatelessWidget {
   }
 
   Widget _buildMenu(BuildContext context, bool isDark) {
+    final Color accentColor = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // PŘIDÁNA VELKÁ IKONA DO MENU
-          Icon(
-            Icons.apps_rounded, 
-            size: 80, 
-            color: isDark ? const Color(0xFF00E5FF).withAlpha(150) : const Color(0xFF7000FF).withAlpha(150)
+          // --- UPRAVENÁ HLAVNÍ IKONA S TLAČÍTKEM NÁPOVĚDY ---
+          Stack(
+            alignment: Alignment.topRight,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: Icon(Icons.apps_rounded, size: 80, color: accentColor.withAlpha(150)),
+              ),
+              Positioned(
+                top: 0, right: 0,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => _showModuleInfoDialog(context, isDark, accentColor),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: accentColor.withAlpha(20),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: accentColor.withAlpha(50)),
+                      ),
+                      child: Icon(Icons.help_outline_rounded, size: 20, color: accentColor),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 40),
           

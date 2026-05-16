@@ -50,9 +50,12 @@ class BackspacePressedEvent extends DigitSpanEvent {}
 class ChangeSettingsEvent extends DigitSpanEvent {
   final SoundSetting? sound;
   final double? speed;
-  const ChangeSettingsEvent({this.sound, this.speed});
+  final int? fastStartLevel; // PŘIDÁNO
+
+  const ChangeSettingsEvent({this.sound, this.speed, this.fastStartLevel});
+
   @override
-  List<Object?> get props => [sound, speed];
+  List<Object?> get props => [sound, speed, fastStartLevel];
 }
 
 class ChangeTrainingLevelEvent extends DigitSpanEvent {
@@ -63,7 +66,19 @@ class ChangeTrainingLevelEvent extends DigitSpanEvent {
 }
 
 class PlayNextRoundEvent extends DigitSpanEvent {}
+
 class SetLanguageEvent extends DigitSpanEvent {
   final String langCode;
   const SetLanguageEvent(this.langCode);
+
+  @override
+  List<Object?> get props => [langCode];
+}
+
+class ToggleGamificationEvent extends DigitSpanEvent {
+  final bool isEnabled;
+  const ToggleGamificationEvent(this.isEnabled);
+
+  @override
+  List<Object?> get props => [isEnabled];
 }

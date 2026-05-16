@@ -14,6 +14,7 @@ void main() async {
 
   final prefs = await SharedPreferences.getInstance();
   final bool isFirstRun = prefs.getBool('is_first_run') ?? true;
+  final bool isCalibrated = prefs.getBool('global_is_calibrated') ?? false;
 
   runApp(
     EasyLocalization(
@@ -23,7 +24,7 @@ void main() async {
       fallbackLocale: const Locale('cs'), 
       child: BlocProvider(
         create: (context) => SettingsBloc(),
-        child: KognixApp(isFirstRun: isFirstRun),
+        child: KognixApp(isFirstRun: isFirstRun, isCalibrated: isCalibrated),
       ),
     ),
   );
@@ -31,7 +32,9 @@ void main() async {
 
 class KognixApp extends StatelessWidget {
   final bool isFirstRun;
-  const KognixApp({super.key, required this.isFirstRun});
+  final bool isCalibrated;
+
+  const KognixApp({super.key, required this.isFirstRun, required this.isCalibrated});
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +50,8 @@ class KognixApp extends StatelessWidget {
             brightness: state.isDarkMode ? Brightness.dark : Brightness.light,
             useMaterial3: true,
           ),
-          home: isFirstRun ? const LanguageSelectionScreen() : const MainMenuScreen()
+          // Předáme stav kalibrace do hlavního menu
+          home: isFirstRun ? const LanguageSelectionScreen() : MainMenuScreen(isCalibrated: isCalibrated)
         );
       },
     );

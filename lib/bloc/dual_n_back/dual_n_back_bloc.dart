@@ -34,7 +34,35 @@ class DualNBackBloc extends Bloc<DualNBackEvent, DualNBackState> {
     });
 
     on<ShowPreTraining>((event, emit) {
-      emit(state.copyWith(phase: DualNBackPhase.preTraining, isAdaptive: event.adaptive));
+      if (event.adaptive) {
+        int adaptN = _prefs?.getInt('dnb_adapt_n') ?? 2;
+        int adaptSpeed = _prefs?.getInt('dnb_adapt_speed') ?? 2500;
+        bool adaptVar = _prefs?.getBool('dnb_adapt_var') ?? false;
+        bool leveledUp = _prefs?.getBool('dnb_has_leveled_up') ?? false;
+
+        if (adaptSpeed < 1700) {
+          adaptSpeed = 1700;
+          _prefs?.setInt('dnb_adapt_speed', 1700);
+        }
+
+        emit(state.copyWith(
+          phase: DualNBackPhase.preTraining, 
+          isAdaptive: true,
+          currentN: adaptN,
+          currentSpeedMs: adaptSpeed,
+          isVariableSpeed: adaptVar,
+          hasLeveledUp: leveledUp, 
+        ));
+      } else {
+        emit(state.copyWith(
+          phase: DualNBackPhase.preTraining, 
+          isAdaptive: false,
+          currentN: state.manualN,
+          currentSpeedMs: state.manualSpeedMs,
+          isVariableSpeed: false,
+          hasLeveledUp: false, 
+        ));
+      }
     });
     
     on<PauseGame>((event, emit) {
@@ -85,6 +113,9 @@ class DualNBackBloc extends Bloc<DualNBackEvent, DualNBackState> {
       emit(state.copyWith(phase: DualNBackPhase.menu, score: 0)); 
     });
 
+    on<LoadDailyProgressEvent>(_onLoadDailyProgress);
+    on<UpdateDailyGoalEvent>(_onUpdateDailyGoal);
+
     add(InitDualNBack()); 
   }
 
@@ -98,6 +129,31 @@ class DualNBackBloc extends Bloc<DualNBackEvent, DualNBackState> {
     final history = rawHistory.map((s) => DualNBackHistoryItem.fromRawString(s)).toList();
     
     emit(state.copyWith(manualN: manualN, manualSpeedMs: manualSpeedMs, adaptationSpeed: adaptationSpeed, history: history));
+    
+    add(LoadDailyProgressEvent());
+  }
+
+  Future<void> _onLoadDailyProgress(LoadDailyProgressEvent event, Emitter<DualNBackState> emit) async {
+    final prefs = await SharedPreferences.getInstance();
+    final String today = DateTime.now().toIso8601String().substring(0, 10);
+    final String lastDate = prefs.getString('dnb_last_date') ?? '';
+    
+    final int goal = prefs.getInt('dnb_daily_goal') ?? 20;
+    int count = 0;
+
+    if (lastDate == today) {
+      count = prefs.getInt('dnb_daily_count') ?? 0;
+    }
+
+    final bool leveledUp = prefs.getBool('dnb_has_leveled_up') ?? false;
+
+    emit(state.copyWith(dailyGoal: goal, dailyCount: count, hasLeveledUp: leveledUp));
+  }
+
+  Future<void> _onUpdateDailyGoal(UpdateDailyGoalEvent event, Emitter<DualNBackState> emit) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('dnb_daily_goal', event.newGoal);
+    emit(state.copyWith(dailyGoal: event.newGoal));
   }
 
   void _onUpdateSettings(UpdateSettings event, Emitter<DualNBackState> emit) {
@@ -116,16 +172,10 @@ class DualNBackBloc extends Bloc<DualNBackEvent, DualNBackState> {
     _sounds.clear();
     _actualTargets = 0; 
     
-    int startN = event.adaptive ? (_prefs?.getInt('dnb_adapt_n') ?? 2) : state.manualN;
-    int startSpeed = event.adaptive ? (_prefs?.getInt('dnb_adapt_speed') ?? 2500) : state.manualSpeedMs;
-    bool startVar = event.adaptive ? (_prefs?.getBool('dnb_adapt_var') ?? false) : false;
-    
+    _prefs?.setBool('dnb_has_leveled_up', false);
+
     emit(state.copyWith(
       phase: DualNBackPhase.playing, 
-      isAdaptive: event.adaptive,
-      currentN: startN, 
-      currentSpeedMs: startSpeed, 
-      isVariableSpeed: startVar,
       currentRound: 0, 
       score: 0, 
       activeSquareIndex: -1,
@@ -133,6 +183,7 @@ class DualNBackBloc extends Bloc<DualNBackEvent, DualNBackState> {
       audioMatchClicked: false,
       isPositionError: false, 
       isAudioError: false,
+      hasLeveledUp: false,
     ));
     add(NextRound());
   }
@@ -190,7 +241,7 @@ class DualNBackBloc extends Bloc<DualNBackEvent, DualNBackState> {
 
     int roundTime;
     if (state.isVariableSpeed) {
-      roundTime = 1500 + _rnd.nextInt(1001);
+      roundTime = 1700 + _rnd.nextInt(1001);
     } else {
       roundTime = state.currentSpeedMs;
     }
@@ -269,7 +320,7 @@ class DualNBackBloc extends Bloc<DualNBackEvent, DualNBackState> {
     }
   }
 
-  void _finishGame(Emitter<DualNBackState> emit) {
+  void _finishGame(Emitter<DualNBackState> emit) async {
     double currentSuccessRate;
     if (_actualTargets > 0) {
       currentSuccessRate = (state.score / _actualTargets).clamp(0.0, 1.0);
@@ -280,6 +331,7 @@ class DualNBackBloc extends Bloc<DualNBackEvent, DualNBackState> {
     int nextN = state.currentN;
     int nextSpeed = state.currentSpeedMs;
     bool nextVar = state.isVariableSpeed;
+    bool leveledUp = false;
 
     if (state.isAdaptive) {
       List<double> recentRates = [currentSuccessRate];
@@ -294,37 +346,41 @@ class DualNBackBloc extends Bloc<DualNBackEvent, DualNBackState> {
         }
       }
 
-      recentRates.sort();
-      double medianRate;
-      
-      if (recentRates.length % 2 == 1) {
-        medianRate = recentRates[recentRates.length ~/ 2];
-      } else {
-        medianRate = (recentRates[recentRates.length ~/ 2 - 1] + recentRates[recentRates.length ~/ 2]) / 2.0;
-      }
-
-      if (medianRate >= 0.8) {
-        if (!nextVar) {
-          if (nextSpeed > 1500) {
-            nextSpeed -= 500; 
-          } else {
-            nextVar = true;
-          }
+      // OPRAVA 1: Striktní čekání na dokončení požadovaného počtu kol
+      if (recentRates.length >= state.adaptationSpeed) {
+        recentRates.sort();
+        double medianRate;
+        
+        if (recentRates.length % 2 == 1) {
+          medianRate = recentRates[recentRates.length ~/ 2];
         } else {
-          nextN++; 
-          nextVar = false; 
-          nextSpeed = 2500;
+          medianRate = (recentRates[recentRates.length ~/ 2 - 1] + recentRates[recentRates.length ~/ 2]) / 2.0;
         }
-      } else if (medianRate < 0.5) {
-        if (nextVar) { 
-          nextVar = false; 
-          nextSpeed = 1500;
-        } else {
-          if (nextSpeed < 2500) {
-            nextSpeed += 500;
-          } else if (nextN > 1) { 
-            nextN--; 
-            nextVar = true; 
+
+        if (medianRate >= 0.8) {
+          leveledUp = true;
+          if (!nextVar) {
+            if (nextSpeed > 1700) {
+              nextSpeed -= 400; 
+            } else {
+              nextVar = true;
+            }
+          } else {
+            nextN++; 
+            nextVar = false; 
+            nextSpeed = 2500;
+          }
+        } else if (medianRate < 0.5) {
+          if (nextVar) { 
+            nextVar = false; 
+            nextSpeed = 1700;
+          } else {
+            if (nextSpeed < 2500) {
+              nextSpeed += 400; // Zpomalení 
+            } else if (nextN > 1) { 
+              nextN--; // Snížení úrovně
+              nextVar = true; 
+            }
           }
         }
       }
@@ -332,6 +388,7 @@ class DualNBackBloc extends Bloc<DualNBackEvent, DualNBackState> {
       _prefs?.setInt('dnb_adapt_n', nextN);
       _prefs?.setInt('dnb_adapt_speed', nextSpeed);
       _prefs?.setBool('dnb_adapt_var', nextVar);
+      _prefs?.setBool('dnb_has_leveled_up', leveledUp); 
     }
 
     int scaledScoreForUI = (currentSuccessRate * (state.totalRounds * 2)).round();
@@ -339,7 +396,29 @@ class DualNBackBloc extends Bloc<DualNBackEvent, DualNBackState> {
     final newHistory = List<DualNBackHistoryItem>.from(state.history)..add(newItem);
     _prefs?.setStringList('dnb_history', newHistory.map((e) => e.toRawString()).toList());
 
-    emit(state.copyWith(phase: DualNBackPhase.result, currentN: nextN, score: scaledScoreForUI, history: newHistory, activeSquareIndex: -1));
+    final String today = DateTime.now().toIso8601String().substring(0, 10);
+    final String lastDate = _prefs?.getString('dnb_last_date') ?? '';
+    
+    int newCount = 1;
+    if (lastDate == today) {
+      newCount = (_prefs?.getInt('dnb_daily_count') ?? 0) + 1;
+    }
+    
+    _prefs?.setString('dnb_last_date', today);
+    _prefs?.setInt('dnb_daily_count', newCount);
+
+    // OPRAVA 2: Propsání vypočtené rychlosti a variabilního módu zpět do UI
+    emit(state.copyWith(
+      phase: DualNBackPhase.result, 
+      currentN: nextN, 
+      currentSpeedMs: nextSpeed, 
+      isVariableSpeed: nextVar, 
+      score: scaledScoreForUI, 
+      history: newHistory, 
+      activeSquareIndex: -1,
+      dailyCount: newCount,
+      hasLeveledUp: leveledUp 
+    ));
   }
 
   void _cancelTimer() {

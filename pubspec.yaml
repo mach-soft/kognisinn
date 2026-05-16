@@ -19,6 +19,10 @@ dependencies:
   easy_localization: ^3.0.8
   easy_localization_loader: ^2.0.2
   vibration: ^3.1.8
+  url_launcher: any
+  fl_chart: ^1.2.0
+
+  
 
 dev_dependencies:
   flutter_test:

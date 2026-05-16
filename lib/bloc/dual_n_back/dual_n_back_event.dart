@@ -47,3 +47,11 @@ class UpdateSettings extends DualNBackEvent {
 
 class ShowHistory extends DualNBackEvent {}
 class ResetDualNBack extends DualNBackEvent {}
+// Přidej do dual_n_back_event.dart
+class LoadDailyProgressEvent extends DualNBackEvent {}
+
+class UpdateDailyGoalEvent extends DualNBackEvent {
+  final int newGoal;
+  const UpdateDailyGoalEvent(this.newGoal);
+}
+

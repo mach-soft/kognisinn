@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:intl/intl.dart'; // SCHVÁLNĚ ODSTRANĚNO (zajišťuje easy_localization)
 import '../../bloc/stroop/stroop_bloc.dart';
 import '../../bloc/stroop/stroop_event.dart';
 import '../../bloc/stroop/stroop_state.dart';
@@ -16,6 +18,72 @@ class StroopScreen extends StatelessWidget {
     'ORANŽOVÁ': Color(0xFFFFAB40),
     'FIALOVÁ': Color(0xFFE040FB),
   };
+
+  // --- FUNKCE: EXPORT DO KOGNITIVNÍHO PROFILU ---
+  Future<void> _saveTestToProfile(double rawReactionTime, double successRate) async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    if (successRate < 0.8) return; 
+
+    double rawScore = (2.0 - rawReactionTime) * 10.0;
+    if (rawScore < 0) rawScore = 0; 
+
+    List<String> dailyHistory = prefs.getStringList('stroop_daily_history') ?? [];
+    Map<String, double> dailyMaxes = {};
+
+    for (var entry in dailyHistory) {
+      final parts = entry.split('|');
+      if (parts.length == 2) {
+        dailyMaxes[parts[0]] = double.tryParse(parts[1]) ?? 0.0;
+      }
+    }
+
+    if (dailyMaxes.containsKey(today)) {
+      if (rawScore > dailyMaxes[today]!) {
+        dailyMaxes[today] = rawScore;
+      }
+    } else {
+      dailyMaxes[today] = rawScore;
+    }
+
+    var sortedKeys = dailyMaxes.keys.toList()..sort();
+    if (sortedKeys.length > 10) {
+      sortedKeys = sortedKeys.sublist(sortedKeys.length - 10);
+    }
+
+    List<String> newHistoryToSave = [];
+    List<double> valuesForMedian = [];
+
+    for (var key in sortedKeys) {
+      newHistoryToSave.add('$key|${dailyMaxes[key]}');
+      valuesForMedian.add(dailyMaxes[key]!);
+    }
+
+    await prefs.setStringList('stroop_daily_history', newHistoryToSave);
+
+    valuesForMedian.sort();
+    double median = 0.0;
+    int length = valuesForMedian.length;
+    if (length > 0) {
+      if (length % 2 == 1) {
+        median = valuesForMedian[length ~/ 2];
+      } else {
+        median = (valuesForMedian[(length ~/ 2) - 1] + valuesForMedian[length ~/ 2]) / 2;
+      }
+    }
+
+    await prefs.setDouble('metric_inhibition', median);
+    await prefs.setInt('validity_inhibition', length);
+  }
+
+  Future<void> _saveTestToHistory(String historyKey, double newResult) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> history = prefs.getStringList(historyKey) ?? [];
+    history.add(newResult.toString());
+    if (history.length > 50) history.removeAt(0); 
+    await prefs.setStringList(historyKey, history);
+  }
 
   Future<bool> _showInterruptDialog(BuildContext context, bool isDark) async {
     return await showDialog<bool>(
@@ -33,6 +101,61 @@ class StroopScreen extends StatelessWidget {
     ) ?? false;
   }
 
+  // --- NOVÁ FUNKCE PRO VYSVĚTLUJÍCÍ DIALOG K MODULU ---
+  void _showModuleInfoDialog(BuildContext context, bool isDark, Color accent) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E1E2C) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.psychology_rounded, color: accent),
+            const SizedBox(width: 10),
+            Expanded(child: Text('stroop_title'.tr(), style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold))),
+          ],
+        ),
+        content: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildDialogSection('module_info_goal'.tr(), 'stroop_info_goal_desc'.tr(), Icons.track_changes_rounded, accent, isDark),
+              const SizedBox(height: 16),
+              _buildDialogSection('module_info_rules'.tr(), 'stroop_info_rules_desc'.tr(), Icons.rule_rounded, Colors.orangeAccent, isDark),
+              const SizedBox(height: 16),
+              _buildDialogSection('module_info_practice'.tr(), 'stroop_info_prac_desc'.tr(), Icons.lightbulb_outline_rounded, const Color(0xFF00E676), isDark),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('OK', style: TextStyle(color: accent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDialogSection(String title, String content, IconData icon, Color color, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 8),
+            Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color, letterSpacing: 1.2)),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(content, style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.black87, height: 1.4)),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
@@ -41,7 +164,23 @@ class StroopScreen extends StatelessWidget {
 
     return BlocProvider(
       create: (context) => StroopBloc(),
-      child: BlocBuilder<StroopBloc, StroopState>(
+      child: BlocConsumer<StroopBloc, StroopState>(
+        listenWhen: (previous, current) {
+          return previous.phase != StroopPhase.result && current.phase == StroopPhase.result;
+        },
+        listener: (context, state) async {
+          if (state.activeGameType == StroopGameType.standard) {
+            final standardHistory = state.history.where((e) => e.gameType == StroopGameType.standard).toList();
+            if (standardHistory.isNotEmpty) {
+              final lastRun = standardHistory.last;
+              double reactionTime = lastRun.medianReactionTime;
+              double successRate = lastRun.score / lastRun.total;
+              
+              await _saveTestToHistory('history_stroop', reactionTime);
+              await _saveTestToProfile(reactionTime, successRate);
+            }
+          }
+        },
         builder: (context, state) {
           // ignore: deprecated_member_use
           return WillPopScope(
@@ -64,7 +203,6 @@ class StroopScreen extends StatelessWidget {
                 child: SafeArea(
                   child: Column(
                     children: [
-                      // Přidali jsme state do hlavičky, aby mohla reagovat na to, zda se hraje
                       _buildHeader(isDark, state),
                       Expanded(child: _buildBody(context, state, isDark)),
                     ],
@@ -79,7 +217,6 @@ class StroopScreen extends StatelessWidget {
   }
 
   Widget _buildHeader(bool isDark, StroopState state) {
-    // Schováme hlavičku při samotném hraní, aby nerušila
     if (state.phase == StroopPhase.playing) {
       return const SizedBox(height: 20);
     }
@@ -136,7 +273,6 @@ class StroopScreen extends StatelessWidget {
           ),
           child: FittedBox(
             fit: BoxFit.scaleDown,
-            // TRIK: Přeložíme samotné slovo pomocí CSV klíčů
             child: Text(
               state.currentWord.tr(),
               style: TextStyle(
@@ -164,27 +300,69 @@ class StroopScreen extends StatelessWidget {
         ],
       );
     }
+    
     return SizedBox(
       width: 330,
       child: GridView.builder(
         shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 2.2, crossAxisSpacing: 12, mainAxisSpacing: 12),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 2.0, crossAxisSpacing: 16, mainAxisSpacing: 16),
         itemCount: state.options.length,
         itemBuilder: (context, index) {
-          final ans = state.options[index]; // ans je např. "ČERVENÁ" pro zachování herní logiky v Blocu
-          return _menuBtn(context, ans.tr(), () => context.read<StroopBloc>().add(AnswerSelected(ans)), isDark, width: double.infinity, indicatorColor: _colorMap[ans]);
+          final ans = state.options[index]; 
+          final Color btnColor = _colorMap[ans]!;
+          
+          return GestureDetector(
+            onTap: () => context.read<StroopBloc>().add(AnswerSelected(ans)),
+            child: Container(
+              decoration: BoxDecoration(
+                color: btnColor,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [BoxShadow(color: btnColor.withAlpha(80), blurRadius: 15, offset: const Offset(0, 5))],
+                border: Border.all(color: Colors.white.withAlpha(50), width: 2),
+              ),
+            ),
+          );
         },
       ),
     );
   }
 
   Widget _buildMenu(BuildContext context, bool isDark) {
+    final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // PŘIDÁNA VELKÁ IKONA DO MENU
-          Icon(Icons.palette_rounded, size: 80, color: isDark ? const Color(0xFF00E5FF).withAlpha(150) : const Color(0xFF7000FF).withAlpha(150)),
+          // --- UPRAVENÁ HLAVNÍ IKONA S TLAČÍTKEM NÁPOVĚDY ---
+          Stack(
+            alignment: Alignment.topRight,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: Icon(Icons.palette_rounded, size: 80, color: accent.withAlpha(150)),
+              ),
+              Positioned(
+                top: 0, right: 0,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => _showModuleInfoDialog(context, isDark, accent),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: accent.withAlpha(20),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: accent.withAlpha(50)),
+                      ),
+                      child: Icon(Icons.help_outline_rounded, size: 20, color: accent),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 40),
           
           _menuBtn(context, 'stroop_mode_standard'.tr(), () => context.read<StroopBloc>().add(const StartStroopGame(gameType: StroopGameType.standard)), isDark, isPrimary: true, icon: Icons.palette_rounded),

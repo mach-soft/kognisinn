@@ -1,10 +1,73 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:intl/intl.dart'; // ODSTRANĚNO (zajišťuje easy_localization)
 import '../../bloc/memory_palace/memory_palace_bloc.dart';
 
 class MemoryPalaceScreen extends StatelessWidget {
   const MemoryPalaceScreen({super.key});
+
+  // --- FUNKCE: EXPORT DO KOGNITIVNÍHO PROFILU ---
+  Future<void> _saveTestToProfile(double newScore) async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    List<String> dailyHistory = prefs.getStringList('palace_daily_history') ?? [];
+    Map<String, double> dailyMaxes = {};
+
+    for (var entry in dailyHistory) {
+      final parts = entry.split('|');
+      if (parts.length == 2) {
+        dailyMaxes[parts[0]] = double.tryParse(parts[1]) ?? 0.0;
+      }
+    }
+
+    if (dailyMaxes.containsKey(today)) {
+      if (newScore > dailyMaxes[today]!) {
+        dailyMaxes[today] = newScore;
+      }
+    } else {
+      dailyMaxes[today] = newScore;
+    }
+
+    var sortedKeys = dailyMaxes.keys.toList()..sort();
+    if (sortedKeys.length > 10) {
+      sortedKeys = sortedKeys.sublist(sortedKeys.length - 10);
+    }
+
+    List<String> newHistoryToSave = [];
+    List<double> valuesForMedian = [];
+
+    for (var key in sortedKeys) {
+      newHistoryToSave.add('$key|${dailyMaxes[key]}');
+      valuesForMedian.add(dailyMaxes[key]!);
+    }
+
+    await prefs.setStringList('palace_daily_history', newHistoryToSave);
+
+    valuesForMedian.sort();
+    double median = 0.0;
+    int length = valuesForMedian.length;
+    if (length > 0) {
+      if (length % 2 == 1) {
+        median = valuesForMedian[length ~/ 2];
+      } else {
+        median = (valuesForMedian[(length ~/ 2) - 1] + valuesForMedian[length ~/ 2]) / 2;
+      }
+    }
+
+    await prefs.setDouble('metric_associative', median);
+    await prefs.setInt('validity_associative', length);
+  }
+
+  Future<void> _saveTestToHistory(String historyKey, double newResult) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> history = prefs.getStringList(historyKey) ?? [];
+    history.add(newResult.toString());
+    if (history.length > 50) history.removeAt(0); 
+    await prefs.setStringList(historyKey, history);
+  }
 
   Future<bool> _showInterruptDialog(BuildContext context, bool isDark) async {
     return await showDialog<bool>(
@@ -22,6 +85,61 @@ class MemoryPalaceScreen extends StatelessWidget {
     ) ?? false;
   }
 
+  // --- NOVÁ FUNKCE PRO VYSVĚTLUJÍCÍ DIALOG K MODULU ---
+  void _showModuleInfoDialog(BuildContext context, bool isDark, Color accent) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E1E2C) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.psychology_rounded, color: accent),
+            const SizedBox(width: 10),
+            Expanded(child: Text('palace_title'.tr(), style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold))),
+          ],
+        ),
+        content: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildDialogSection('module_info_goal'.tr(), 'palace_info_goal_desc'.tr(), Icons.track_changes_rounded, accent, isDark),
+              const SizedBox(height: 16),
+              _buildDialogSection('module_info_rules'.tr(), 'palace_info_rules_desc'.tr(), Icons.rule_rounded, Colors.orangeAccent, isDark),
+              const SizedBox(height: 16),
+              _buildDialogSection('module_info_practice'.tr(), 'palace_info_prac_desc'.tr(), Icons.lightbulb_outline_rounded, const Color(0xFF00E676), isDark),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('OK', style: TextStyle(color: accent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDialogSection(String title, String content, IconData icon, Color color, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 8),
+            Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color, letterSpacing: 1.2)),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(content, style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.black87, height: 1.4)),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
@@ -30,9 +148,18 @@ class MemoryPalaceScreen extends StatelessWidget {
 
     return BlocProvider(
       create: (context) => MemoryPalaceBloc(),
-      child: BlocBuilder<MemoryPalaceBloc, MemoryPalaceState>(
+      child: BlocConsumer<MemoryPalaceBloc, MemoryPalaceState>(
+        listenWhen: (previous, current) {
+          return previous.phase != PalacePhase.result && current.phase == PalacePhase.result;
+        },
+        listener: (context, state) async {
+          if (state.isAdaptive) {
+            double finalScore = state.currentSpan.toDouble();
+            await _saveTestToHistory('history_palace', finalScore);
+            await _saveTestToProfile(finalScore);
+          }
+        },
         builder: (context, state) {
-          // OPRAVA PRO SAMSUNG: WillPopScope
           // ignore: deprecated_member_use
           return WillPopScope(
             onWillPop: () async {
@@ -115,7 +242,7 @@ class MemoryPalaceScreen extends StatelessWidget {
           if (state.currentIndex < 0) ...[
             Icon(Icons.psychology_alt_rounded, size: 80, color: accentColor.withAlpha(150)),
             const SizedBox(height: 20),
-            Text('palace_inst_prep'.tr(), textAlign: TextAlign.center, // <--- TOTO ZARUČÍ VŽDY STŘED 
+            Text('palace_inst_prep'.tr(), textAlign: TextAlign.center, 
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: accentColor, letterSpacing: 3)
       ),
 
@@ -129,13 +256,11 @@ class MemoryPalaceScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 FittedBox(
                   fit: BoxFit.scaleDown,
-                  // OPRAVA 1: Překlad lokace v UI
                   child: Text(state.activeLocations[state.currentIndex].tr(), style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black54)),
                 ),
                 const Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Divider(color: Colors.white12)),
                 FittedBox(
                   fit: BoxFit.scaleDown,
-                  // OPRAVA 2: Překlad předmětu v UI
                   child: Text(state.activeItems[state.currentIndex].tr().toUpperCase(), style: TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: textColor, shadows: [Shadow(color: accentColor.withAlpha(100), blurRadius: 20)])),
                 ),
               ],
@@ -154,7 +279,6 @@ class MemoryPalaceScreen extends StatelessWidget {
               Flexible(
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
-                  // OPRAVA 3: Překlad lokace při vzpomínání
                   child: Text(state.activeLocations[state.currentIndex].tr(), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: textColor)),
                 ),
               ),
@@ -163,7 +287,6 @@ class MemoryPalaceScreen extends StatelessWidget {
           const SizedBox(height: 50),
           Wrap(
             spacing: 16, runSpacing: 16, alignment: WrapAlignment.center,
-            // OPRAVA 4: Překlad na samotném tlačítku, do eventu AnswerSelected jde ale dál nepřeložený klíč
             children: state.currentOptions.map((option) => _menuBtn(context, option.tr(), () => context.read<MemoryPalaceBloc>().add(AnswerSelected(option)), isDark, width: 150)).toList(),
           ),
         ],
@@ -173,12 +296,43 @@ class MemoryPalaceScreen extends StatelessWidget {
   }
 
   Widget _buildMenu(BuildContext context, bool isDark) {
+    final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.account_balance_rounded, size: 80, color: isDark ? const Color(0xFF00E5FF).withAlpha(150) : const Color(0xFF7000FF).withAlpha(150)),
+          // --- UPRAVENÁ HLAVNÍ IKONA S TLAČÍTKEM NÁPOVĚDY ---
+          Stack(
+            alignment: Alignment.topRight,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: Icon(Icons.account_balance_rounded, size: 80, color: accent.withAlpha(150)),
+              ),
+              Positioned(
+                top: 0, right: 0,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => _showModuleInfoDialog(context, isDark, accent),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: accent.withAlpha(20),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: accent.withAlpha(50)),
+                      ),
+                      child: Icon(Icons.help_outline_rounded, size: 20, color: accent),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 40),
+          
           _menuBtn(context, 'global_mode_adaptive'.tr(), () => context.read<MemoryPalaceBloc>().add(StartAdaptive()), isDark, isPrimary: true, icon: Icons.auto_graph_rounded),
           const SizedBox(height: 16),
           _menuBtn(context, 'ds_mode_free'.tr(), () => context.read<MemoryPalaceBloc>().add(StartFreeTraining()), isDark, icon: Icons.tune_rounded),

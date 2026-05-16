@@ -18,6 +18,13 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
   DigitSpanBloc() : super(const DigitSpanState()) {
     on<InitializeHardwareEvent>(_onInitializeHardware);
     
+    on<ToggleGamificationEvent>((event, emit) async {
+      if (_prefs != null) {
+        await _prefs!.setBool('ds_gamification_enabled', event.isEnabled);
+      }
+      emit(state.copyWith(isGamificationEnabled: event.isEnabled));
+    });
+
     on<SetLanguageEvent>((event, emit) async {
       String ttsLang = "cs-CZ";
       if (event.langCode == 'en') ttsLang = "en-US";
@@ -65,7 +72,19 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
       for (var mode in GameMode.values) {
         loadedHighScores[mode] = _prefs?.getInt('highScore_$mode') ?? 0;
       }
-      emit(state.copyWith(highScores: loadedHighScores));
+      
+      bool isGamificationOn = _prefs?.getBool('ds_gamification_enabled') ?? true;
+      int fastStart = _prefs?.getInt('ds_fast_start_level') ?? 3;
+
+      List<String> savedHistoryStr = _prefs?.getStringList('ds_detailed_history') ?? [];
+      List<GameResult> loadedHistory = savedHistoryStr.map((s) => GameResult.fromPrefsString(s)).toList();
+
+      emit(state.copyWith(
+        highScores: loadedHighScores, 
+        isGamificationEnabled: isGamificationOn,
+        fastTestStartingLevel: fastStart,
+        resultsHistory: loadedHistory,
+      ));
     } catch (e) {
       debugPrint("Chyba paměti: $e");
     }
@@ -78,16 +97,22 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
         for (var mode in GameMode.values) {
           freshHighScores[mode] = _prefs!.getInt('highScore_$mode') ?? 0;
         }
-        emit(state.copyWith(phase: GamePhase.menu, highScores: freshHighScores));
+        // OPRAVA: Při návratu do menu vždy natvrdo vypneme isEmphaticMode
+        emit(state.copyWith(phase: GamePhase.menu, highScores: freshHighScores, isEmphaticMode: false));
     } else {
-        emit(state.copyWith(phase: GamePhase.menu));
+        // OPRAVA: Při návratu do menu vždy natvrdo vypneme isEmphaticMode
+        emit(state.copyWith(phase: GamePhase.menu, isEmphaticMode: false));
     }
   }
 
   void _onChangeSettings(ChangeSettingsEvent event, Emitter<DigitSpanState> emit) {
+    if (event.fastStartLevel != null && _prefs != null) {
+      _prefs!.setInt('ds_fast_start_level', event.fastStartLevel!);
+    }
     emit(state.copyWith(
       soundSetting: event.sound ?? state.soundSetting,
       speedFactor: event.speed ?? state.speedFactor,
+      fastTestStartingLevel: event.fastStartLevel ?? state.fastTestStartingLevel,
     ));
   }
 
@@ -110,10 +135,9 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
   }
 
   void _onModeSelected(ModeSelectedEvent event, Emitter<DigitSpanState> emit) {
-    add(StartGameEvent(event.mode, false));
+    add(StartGameEvent(event.mode, true)); 
   }
 
-  // OPRAVA: Metoda je nyní async a volání _updateHighScore čeká na dokončení pomocí await
   Future<void> _onStartGame(StartGameEvent event, Emitter<DigitSpanState> emit) async {
     int seqLen = event.mode == GameMode.nback ? 1 : 3;
     int succ = 0;
@@ -121,20 +145,33 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
     bool emp = false;
 
     if (state.gameType == GameType.training) {
-      emit(state.copyWith(gameMode: event.mode, phase: GamePhase.choosingLevel, sequenceLength: seqLen));
+      emit(state.copyWith(gameMode: event.mode, phase: GamePhase.choosingLevel, sequenceLength: seqLen, failsInCurrentSpan: 0, isEmphaticMode: false));
       return;
     }
 
     if (event.loadSave && _prefs != null) {
       String modeStr = event.mode.toString();
-      seqLen = _prefs!.getInt('${modeStr}_level') ?? seqLen;
-      succ = _prefs!.getInt('${modeStr}_successes') ?? 0;
-      fail = _prefs!.getInt('${modeStr}_failures') ?? 0;
-      emp = _prefs!.getBool('${modeStr}_emphatic') ?? false;
+      
+      if (state.gameType == GameType.gameMode) {
+        int savedLen = _prefs!.getInt('${modeStr}_level') ?? seqLen;
+        seqLen = savedLen - 1;
+        int minLen = event.mode == GameMode.nback ? 1 : 3;
+        if (seqLen < minLen) seqLen = minLen;
+        
+        succ = _prefs!.getInt('${modeStr}_successes') ?? 0;
+        fail = _prefs!.getInt('${modeStr}_failures') ?? 0;
+        
+        emp = _prefs!.getBool('${modeStr}_emphatic') ?? false;
+        if (succ < 5) emp = false;
+      }
     }
 
     if (state.gameType == GameType.fastTest) {
+      seqLen = state.fastTestStartingLevel;
       await _updateHighScore(event.mode, seqLen, emit);
+      succ = 0;
+      fail = 0;
+      emp = false;
     }
 
     emit(state.copyWith(
@@ -142,6 +179,7 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
       sequenceLength: seqLen,
       consecutiveSuccesses: succ,
       consecutiveFailures: fail,
+      failsInCurrentSpan: 0,
       isEmphaticMode: emp,
     ));
     add(PlayNextRoundEvent());
@@ -150,13 +188,15 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
   Future<void> _onSaveGameAndExit(SaveGameAndExitEvent event, Emitter<DigitSpanState> emit) async {
     if (_prefs != null) {
       String modeStr = state.gameMode.toString();
+      // Nejprve si stav tréninku včetně případného modrého módu bezpečně uložíme
       await _prefs!.setInt('${modeStr}_level', state.sequenceLength);
       await _prefs!.setInt('${modeStr}_successes', state.consecutiveSuccesses);
       await _prefs!.setInt('${modeStr}_failures', state.consecutiveFailures);
       await _prefs!.setBool('${modeStr}_emphatic', state.isEmphaticMode);
     }
     _flutterTts.stop();
-    emit(state.copyWith(phase: GamePhase.menu));
+    // OPRAVA: Před návratem do menu vypneme aktuální záření, aby se nepřenášelo do UI
+    emit(state.copyWith(phase: GamePhase.menu, isEmphaticMode: false));
   }
 
   Future<void> _onPlayNextRound(PlayNextRoundEvent event, Emitter<DigitSpanState> emit) async {
@@ -165,8 +205,10 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
     emit(state.copyWith(userInput: '', currentlyDisplayedDigit: '', phase: GamePhase.showingSequence));
 
     double finalRate = 0.5 * state.speedFactor;
-    double finalPitch = state.isEmphaticMode ? 1.05 : 1.0;
-    if (state.isEmphaticMode) finalRate *= 0.98;
+    bool shouldEmphasize = state.isEmphaticMode && state.gameType == GameType.gameMode && state.isGamificationEnabled;
+    
+    double finalPitch = shouldEmphasize ? 1.05 : 1.0;
+    if (shouldEmphasize) finalRate *= 0.98;
 
     await _flutterTts.setPitch(finalPitch);
     await _flutterTts.setSpeechRate(finalRate);
@@ -219,7 +261,23 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
         expectedSeq.add(currentSeq[forceIndex]);
       }
     } else {
-      currentSeq = List.generate(state.sequenceLength, (_) => _random.nextInt(10));
+      for (int i = 0; i < state.sequenceLength; i++) {
+        int val = 0; 
+        bool isValid = false;
+        
+        while (!isValid) {
+          val = _random.nextInt(10);
+          isValid = true;
+          
+          if (i > 0) {
+            if (val == currentSeq[i - 1]) isValid = false;
+            if (val == currentSeq[i - 1] + 1) isValid = false;
+            if (val == currentSeq[i - 1] - 1) isValid = false;
+          }
+        }
+        currentSeq.add(val);
+      }
+
       switch (state.gameMode) {
         case GameMode.forward: expectedSeq = List.from(currentSeq); break;
         case GameMode.reverse: expectedSeq = List.from(currentSeq.reversed); break;
@@ -254,6 +312,14 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
     List<GameResult> history = List.from(state.resultsHistory);
     if (state.gameType != GameType.fastTest) {
       history.add(GameResult(DateTime.now(), isCorrect, state.gameMode, state.sequenceLength));
+      
+      if (history.length > 500) {
+        history.removeAt(0); 
+      }
+      
+      if (_prefs != null) {
+        await _prefs!.setStringList('ds_detailed_history', history.map((e) => e.toPrefsString()).toList());
+      }
     }
     emit(state.copyWith(resultsHistory: history));
 
@@ -267,8 +333,10 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
       if (state.gameType == GameType.training) {
         emit(state.copyWith(phase: GamePhase.choosingLevel));
       } else if (state.gameType == GameType.fastTest) {
-        emit(state.copyWith(sequenceLength: state.sequenceLength + 1));
-        // OPRAVA: Přidán await pro updateHighScore
+        emit(state.copyWith(
+          sequenceLength: state.sequenceLength + 1,
+          failsInCurrentSpan: 0 
+        ));
         await _updateHighScore(state.gameMode, state.sequenceLength, emit);
         add(PlayNextRoundEvent());
       } else {
@@ -276,27 +344,35 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
         int newLen = state.sequenceLength;
         bool newEmp = state.isEmphaticMode;
         
-        if (newSucc >= 5) newEmp = true;
-        if (newSucc % 3 == 0) newLen++;
+        if (state.isGamificationEnabled && newSucc >= 5) {
+          newEmp = true;
+        } else {
+          newEmp = false; 
+        }
+        
+        if (newSucc % 3 == 0) {
+          newLen++;
+          emit(state.copyWith(failsInCurrentSpan: 0)); 
+        }
         
         emit(state.copyWith(consecutiveSuccesses: newSucc, consecutiveFailures: 0, sequenceLength: newLen, isEmphaticMode: newEmp));
+        
+        if (_prefs != null) {
+          String modeStr = state.gameMode.toString();
+          await _prefs!.setInt('${modeStr}_level', newLen);
+          await _prefs!.setInt('${modeStr}_successes', newSucc);
+          await _prefs!.setInt('${modeStr}_failures', 0);
+          await _prefs!.setBool('${modeStr}_emphatic', newEmp);
+        }
+
         add(PlayNextRoundEvent());
       }
-                   } else {
-                      bool isHaptic = _prefs?.getBool('global_is_haptic') ?? true;
-                    if (isHaptic) {
-                          // Načtení délky, fallback na 500 ms
-                    int hDuration = _prefs?.getInt('global_haptic_duration') ?? 500;
-                    Vibration.vibrate(duration: hDuration); 
-      
-
-      emit(state.copyWith(phase: GamePhase.showingFailure));
-      // ... (zbytek zůstává stejný)
-
-
-
+    } else {
+      bool isHaptic = _prefs?.getBool('global_is_haptic') ?? true;
+      if (isHaptic) {
+         int hDuration = _prefs?.getInt('global_haptic_duration') ?? 500;
+         Vibration.vibrate(duration: hDuration); 
       }
-
 
       emit(state.copyWith(phase: GamePhase.showingFailure));
       if (state.soundSetting == SoundSetting.numbersAndFeedback) _flutterTts.speak("ds_tts_wrong".tr());
@@ -304,20 +380,41 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
       await Future.delayed(const Duration(milliseconds: 1500));
       if (state.phase != GamePhase.showingFailure) return;
 
-      if (state.gameType == GameType.gameMode) {
-        int newFail = state.consecutiveFailures + 1;
-        int newLen = state.sequenceLength;
+      if (state.gameType == GameType.fastTest) {
+        int newFails = state.failsInCurrentSpan + 1;
         
-        if (newFail % 2 == 0 && newLen > 3) {
-           if (state.gameMode == GameMode.nback && newLen > 1) {
-             newLen--;
-           } else if (state.gameMode != GameMode.nback) {
-             newLen--;
-           }
+        if (newFails >= 2) {
+          emit(state.copyWith(phase: GamePhase.gameOver));
+        } else {
+          emit(state.copyWith(failsInCurrentSpan: newFails));
+          add(PlayNextRoundEvent());
         }
-        emit(state.copyWith(consecutiveFailures: newFail, consecutiveSuccesses: 0, isEmphaticMode: false, sequenceLength: newLen));
+      } else if (state.gameType == GameType.gameMode) {
+        int newFail = state.consecutiveFailures + 1;
+        int newLen = state.sequenceLength - 1; 
+        
+        int minLen = state.gameMode == GameMode.nback ? 1 : 3;
+        if (newLen < minLen) newLen = minLen;
+        
+        emit(state.copyWith(
+          consecutiveFailures: newFail, 
+          consecutiveSuccesses: 0, 
+          isEmphaticMode: false, 
+          sequenceLength: newLen
+        ));
+        
+        if (_prefs != null) {
+          String modeStr = state.gameMode.toString();
+          await _prefs!.setInt('${modeStr}_level', newLen);
+          await _prefs!.setInt('${modeStr}_successes', 0);
+          await _prefs!.setInt('${modeStr}_failures', newFail);
+          await _prefs!.setBool('${modeStr}_emphatic', false);
+        }
+        
+        add(PlayNextRoundEvent());
+      } else {
+        emit(state.copyWith(phase: GamePhase.gameOver));
       }
-      emit(state.copyWith(phase: GamePhase.gameOver));
     }
   }
 }

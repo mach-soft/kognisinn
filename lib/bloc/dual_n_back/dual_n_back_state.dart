@@ -35,6 +35,7 @@ class DualNBackState {
   final int manualN;
   final int manualSpeedMs;
   final int adaptationSpeed;
+  final int dailyGoal;
 
   // Aktuální hra
   final int currentN;
@@ -43,6 +44,10 @@ class DualNBackState {
   final int currentRound;
   final int totalRounds;
   final int score;
+  final int dailyCount;
+  
+  // NOVÉ: Indikátor zvýšení obtížnosti
+  final bool hasLeveledUp; 
 
   // UI Stavy
   final int activeSquareIndex;
@@ -59,12 +64,15 @@ class DualNBackState {
     this.manualN = 2,
     this.manualSpeedMs = 2500,
     this.adaptationSpeed = 1,
+    this.dailyGoal = 20,
     this.currentN = 2,
     this.currentSpeedMs = 2500,
     this.isVariableSpeed = false,
     this.currentRound = 0,
     this.totalRounds = 20, 
     this.score = 0,
+    this.dailyCount = 0,
+    this.hasLeveledUp = false, // Výchozí stav
     this.activeSquareIndex = -1,
     this.positionMatchClicked = false,
     this.audioMatchClicked = false,
@@ -79,12 +87,15 @@ class DualNBackState {
     int? manualN,
     int? manualSpeedMs,
     int? adaptationSpeed,
+    int? dailyGoal,
     int? currentN,
     int? currentSpeedMs,
     bool? isVariableSpeed,
     int? currentRound,
     int? totalRounds,
     int? score,
+    int? dailyCount,
+    bool? hasLeveledUp,
     int? activeSquareIndex,
     bool? positionMatchClicked,
     bool? audioMatchClicked,
@@ -98,12 +109,15 @@ class DualNBackState {
       manualN: manualN ?? this.manualN,
       manualSpeedMs: manualSpeedMs ?? this.manualSpeedMs,
       adaptationSpeed: adaptationSpeed ?? this.adaptationSpeed,
+      dailyGoal: dailyGoal ?? this.dailyGoal,
       currentN: currentN ?? this.currentN,
       currentSpeedMs: currentSpeedMs ?? this.currentSpeedMs,
       isVariableSpeed: isVariableSpeed ?? this.isVariableSpeed,
       currentRound: currentRound ?? this.currentRound,
       totalRounds: totalRounds ?? this.totalRounds,
       score: score ?? this.score,
+      dailyCount: dailyCount ?? this.dailyCount,
+      hasLeveledUp: hasLeveledUp ?? this.hasLeveledUp,
       activeSquareIndex: activeSquareIndex ?? this.activeSquareIndex,
       positionMatchClicked: positionMatchClicked ?? this.positionMatchClicked,
       audioMatchClicked: audioMatchClicked ?? this.audioMatchClicked,

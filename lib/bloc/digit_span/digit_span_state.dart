@@ -13,6 +13,26 @@ class GameResult extends Equatable {
 
   const GameResult(this.timestamp, this.isCorrect, this.mode, this.level);
 
+  // Převod výsledku na text (pro uložení do paměti)
+  String toPrefsString() {
+    return '${timestamp.toIso8601String()}|$isCorrect|${mode.name}|$level';
+  }
+
+  // Převod z textu zpět na objekt (při startu aplikace)
+  static GameResult fromPrefsString(String str) {
+    try {
+      final parts = str.split('|');
+      return GameResult(
+        DateTime.parse(parts[0]),
+        parts[1] == 'true',
+        GameMode.values.firstWhere((e) => e.name == parts[2], orElse: () => GameMode.forward),
+        int.parse(parts[3]),
+      );
+    } catch(e) {
+      return GameResult(DateTime.now(), false, GameMode.forward, 1); // Záchranná brzda při chybě čtení
+    }
+  }
+
   @override
   List<Object?> get props => [timestamp, isCorrect, mode, level];
 }
@@ -22,11 +42,18 @@ class DigitSpanState extends Equatable {
   final GameType gameType;
   final GameMode gameMode;
   final int sequenceLength;
+  
   final int consecutiveSuccesses;
   final int consecutiveFailures;
+  final int failsInCurrentSpan; 
+  
   final bool isEmphaticMode;
+  final bool isGamificationEnabled;
+  
   final SoundSetting soundSetting;
   final double speedFactor;
+  final int fastTestStartingLevel; // <--- NOVÁ PROMĚNNÁ
+  
   final List<GameResult> resultsHistory;
   final List<int> currentSequence;
   final List<int> expectedSequence;
@@ -41,9 +68,12 @@ class DigitSpanState extends Equatable {
     this.sequenceLength = 3,
     this.consecutiveSuccesses = 0,
     this.consecutiveFailures = 0,
+    this.failsInCurrentSpan = 0,
     this.isEmphaticMode = false,
+    this.isGamificationEnabled = true,
     this.soundSetting = SoundSetting.numbersAndFeedback,
     this.speedFactor = 1.0,
+    this.fastTestStartingLevel = 3, // <--- VÝCHOZÍ STAV
     this.resultsHistory = const [],
     this.currentSequence = const [],
     this.expectedSequence = const [],
@@ -59,9 +89,12 @@ class DigitSpanState extends Equatable {
     int? sequenceLength,
     int? consecutiveSuccesses,
     int? consecutiveFailures,
+    int? failsInCurrentSpan,
     bool? isEmphaticMode,
+    bool? isGamificationEnabled,
     SoundSetting? soundSetting,
     double? speedFactor,
+    int? fastTestStartingLevel, // <--- PŘIDÁNO DO COPYWITH
     List<GameResult>? resultsHistory,
     List<int>? currentSequence,
     List<int>? expectedSequence,
@@ -76,9 +109,12 @@ class DigitSpanState extends Equatable {
       sequenceLength: sequenceLength ?? this.sequenceLength,
       consecutiveSuccesses: consecutiveSuccesses ?? this.consecutiveSuccesses,
       consecutiveFailures: consecutiveFailures ?? this.consecutiveFailures,
+      failsInCurrentSpan: failsInCurrentSpan ?? this.failsInCurrentSpan,
       isEmphaticMode: isEmphaticMode ?? this.isEmphaticMode,
+      isGamificationEnabled: isGamificationEnabled ?? this.isGamificationEnabled,
       soundSetting: soundSetting ?? this.soundSetting,
       speedFactor: speedFactor ?? this.speedFactor,
+      fastTestStartingLevel: fastTestStartingLevel ?? this.fastTestStartingLevel, // <--- PŘIDÁNO DO COPYWITH
       resultsHistory: resultsHistory ?? this.resultsHistory,
       currentSequence: currentSequence ?? this.currentSequence,
       expectedSequence: expectedSequence ?? this.expectedSequence,
@@ -91,8 +127,8 @@ class DigitSpanState extends Equatable {
   @override
   List<Object?> get props => [
         phase, gameType, gameMode, sequenceLength, consecutiveSuccesses,
-        consecutiveFailures, isEmphaticMode, soundSetting, speedFactor,
-        resultsHistory, currentSequence, expectedSequence, userInput,
-        currentlyDisplayedDigit, highScores
+        consecutiveFailures, failsInCurrentSpan, isEmphaticMode, isGamificationEnabled, 
+        soundSetting, speedFactor, fastTestStartingLevel, resultsHistory, currentSequence, // <--- PŘIDÁNO DO PROPS
+        expectedSequence, userInput, currentlyDisplayedDigit, highScores
       ];
 }

@@ -1,13 +1,78 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../bloc/dual_n_back/dual_n_back_bloc.dart';
 import '../../bloc/dual_n_back/dual_n_back_event.dart';
 import '../../bloc/dual_n_back/dual_n_back_state.dart';
-import '../../bloc/settings/settings_bloc.dart'; // IMPORT PRO FORMÁT ČASU
+import '../../bloc/settings/settings_bloc.dart';
 
 class DualNBackScreen extends StatelessWidget {
   const DualNBackScreen({super.key});
+
+  // --- NOVÁ FUNKCE: EXPORT DO KOGNITIVNÍHO PROFILU ---
+  Future<void> _saveTestToProfile(double newScore) async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    List<String> dailyHistory = prefs.getStringList('dnb_daily_history') ?? [];
+    Map<String, double> dailyMaxes = {};
+
+    for (var entry in dailyHistory) {
+      final parts = entry.split('|');
+      if (parts.length == 2) {
+        dailyMaxes[parts[0]] = double.tryParse(parts[1]) ?? 0.0;
+      }
+    }
+
+    // Uložíme jen dnešní absolutní maximum
+    if (dailyMaxes.containsKey(today)) {
+      if (newScore > dailyMaxes[today]!) {
+        dailyMaxes[today] = newScore;
+      }
+    } else {
+      dailyMaxes[today] = newScore;
+    }
+
+    // Ořízneme to na 10 nejnovějších dnů
+    var sortedKeys = dailyMaxes.keys.toList()..sort();
+    if (sortedKeys.length > 10) {
+      sortedKeys = sortedKeys.sublist(sortedKeys.length - 10);
+    }
+
+    List<String> newHistoryToSave = [];
+    List<double> valuesForMedian = [];
+
+    for (var key in sortedKeys) {
+      newHistoryToSave.add('$key|${dailyMaxes[key]}');
+      valuesForMedian.add(dailyMaxes[key]!);
+    }
+
+    await prefs.setStringList('dnb_daily_history', newHistoryToSave);
+
+    // Výpočet klouzavého mediánu
+    valuesForMedian.sort();
+    double median = 0.0;
+    int length = valuesForMedian.length;
+    if (length > 0) {
+      if (length % 2 == 1) {
+        median = valuesForMedian[length ~/ 2];
+      } else {
+        median = (valuesForMedian[(length ~/ 2) - 1] + valuesForMedian[length ~/ 2]) / 2;
+      }
+    }
+
+    // --- EXPORT KLÍČŮ (DNB měří 3 metriky) ---
+    await prefs.setDouble('metric_working_memory', median);
+    await prefs.setDouble('metric_attention', median); 
+    await prefs.setDouble('metric_executive', median); 
+    
+    // --- EXPORT VALIDITY PRO VŠECHNY 3 METRIKY ---
+    int validityScore = length; // Hodnota 1-10
+    await prefs.setInt('validity_working_memory', validityScore); 
+    await prefs.setInt('validity_attention', validityScore); 
+    await prefs.setInt('validity_executive', validityScore); 
+  }
 
   Future<bool> _showInterruptDialog(BuildContext context, bool isDark) async {
     return await showDialog<bool>(
@@ -25,13 +90,69 @@ class DualNBackScreen extends StatelessWidget {
     ) ?? false;
   }
 
+  // --- NOVÁ FUNKCE PRO VYSVĚTLUJÍCÍ DIALOG K MODULU ---
+  void _showModuleInfoDialog(BuildContext context, bool isDark, Color accent) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E1E2C) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.psychology_rounded, color: accent),
+            const SizedBox(width: 10),
+            Expanded(child: Text('dnb_title'.tr(), style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold))),
+          ],
+        ),
+        content: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildDialogSection('module_info_goal'.tr(), 'dnb_info_goal_desc'.tr(), Icons.track_changes_rounded, accent, isDark),
+              const SizedBox(height: 16),
+              _buildDialogSection('module_info_rules'.tr(), 'dnb_info_rules_desc'.tr(), Icons.rule_rounded, Colors.orangeAccent, isDark),
+              const SizedBox(height: 16),
+              _buildDialogSection('module_info_practice'.tr(), 'dnb_info_prac_desc'.tr(), Icons.lightbulb_outline_rounded, const Color(0xFF00E676), isDark),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('OK', style: TextStyle(color: accent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDialogSection(String title, String content, IconData icon, Color color, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 8),
+            Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color, letterSpacing: 1.2)),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(content, style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.black87, height: 1.4)),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
     final Color bgTop = isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC);
     final Color bgBottom = isDark ? const Color(0xFF1A1A2E) : const Color(0xFFE2E8F0);
-
     final String langCode = context.locale.languageCode;
+
+    final bool is24h = context.read<SettingsBloc>().state.is24HourFormat;
 
     return BlocProvider(
       create: (context) {
@@ -39,7 +160,19 @@ class DualNBackScreen extends StatelessWidget {
         bloc.add(SetLanguageEvent(langCode));
         return bloc;
       },
-      child: BlocBuilder<DualNBackBloc, DualNBackState>(
+      child: BlocConsumer<DualNBackBloc, DualNBackState>(
+        listenWhen: (previous, current) {
+          return previous.phase == DualNBackPhase.playing && current.phase == DualNBackPhase.result;
+        },
+        listener: (context, state) async {
+          // EXPORT DO PROFILU POUZE Z ADAPTIVNÍHO TRÉNINKU
+          if (state.isAdaptive && state.history.isNotEmpty) {
+            final lastItem = state.history.last;
+            double speedMultiplier = lastItem.isVariableSpeed ? 2.0 : 2500 / lastItem.speedMs; 
+            double rawScore = (lastItem.score / (state.totalRounds * 2)) * lastItem.nLevel * speedMultiplier;
+            await _saveTestToProfile(rawScore);
+          }
+        },
         builder: (context, state) {
           // ignore: deprecated_member_use
           return WillPopScope(
@@ -65,7 +198,7 @@ class DualNBackScreen extends StatelessWidget {
             child: Scaffold(
               body: Container(
                 decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [bgTop, bgBottom])),
-                child: SafeArea(child: Column(children: [_buildHeader(isDark, state), Expanded(child: _buildBody(context, state, isDark))])),
+                child: SafeArea(child: Column(children: [_buildHeader(isDark, state), Expanded(child: _buildBody(context, state, isDark, is24h))])),
               ),
             ),
           );
@@ -93,12 +226,12 @@ class DualNBackScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBody(BuildContext context, DualNBackState state, bool isDark) {
-    if (state.phase == DualNBackPhase.menu) return _buildMenu(context, isDark);
+  Widget _buildBody(BuildContext context, DualNBackState state, bool isDark, bool is24h) {
+    if (state.phase == DualNBackPhase.menu) return _buildMenu(context, state, isDark);
     if (state.phase == DualNBackPhase.preTraining) return _buildPreTraining(context, state, isDark);
     if (state.phase == DualNBackPhase.settings) return _buildSettings(context, state, isDark);
     if (state.phase == DualNBackPhase.result) return _buildResult(context, state, isDark);
-    if (state.phase == DualNBackPhase.history) return _buildHistory(context, state, isDark);
+    if (state.phase == DualNBackPhase.history) return _buildHistory(context, state, isDark, is24h);
     if (state.phase == DualNBackPhase.paused) return _buildPaused(context, state, isDark);
 
     final Color accentColor = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
@@ -182,15 +315,37 @@ class DualNBackScreen extends StatelessWidget {
   Widget _buildPreTraining(BuildContext context, DualNBackState state, bool isDark) {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
     final String modeName = state.isAdaptive ? 'global_mode_adaptive'.tr() : 'global_mode_manual'.tr();
+    
     final int startN = state.isAdaptive ? state.currentN : state.manualN;
+    final int startSpeed = state.isAdaptive ? state.currentSpeedMs : state.manualSpeedMs;
+    final bool startVar = state.isAdaptive ? state.isVariableSpeed : false;
+
+    String speedLabel = startVar ? 'dnb_speed_var'.tr() : '${(startSpeed / 1000).toStringAsFixed(1)}s';
 
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(state.isAdaptive ? Icons.auto_graph_rounded : Icons.tune_rounded, size: 80, color: accent.withAlpha(150)), const SizedBox(height: 30),
-          Text(modeName, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B), letterSpacing: 2)), const SizedBox(height: 10),
-          Text('${'dnb_settings_level'.tr()}: N=$startN', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: accent, letterSpacing: 1.5)), const SizedBox(height: 50),
+          Text(modeName, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B), letterSpacing: 2)), const SizedBox(height: 15),
+          
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withAlpha(5) : Colors.black.withAlpha(5),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+            ),
+            child: Column(
+              children: [
+                Text('${'dnb_settings_level'.tr()}: N=$startN', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: accent, letterSpacing: 1.5)),
+                const SizedBox(height: 4),
+                Text('${'dnb_settings_speed'.tr()}: $speedLabel', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? Colors.white54 : Colors.black54, letterSpacing: 1.2)),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 50),
           _menuBtn(context, 'global_btn_start_training'.tr(), () => context.read<DualNBackBloc>().add(StartGame(adaptive: state.isAdaptive)), isDark, isPrimary: true, icon: Icons.play_arrow_rounded), const SizedBox(height: 16),
           _menuBtn(context, 'global_btn_back'.tr(), () => context.read<DualNBackBloc>().add(ResetDualNBack()), isDark, isSecondary: true),
         ],
@@ -198,18 +353,122 @@ class DualNBackScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMenu(BuildContext context, bool isDark) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.memory_rounded, size: 80, color: isDark ? const Color(0xFF00E5FF).withAlpha(150) : const Color(0xFF7000FF).withAlpha(150)), const SizedBox(height: 40),
-          _menuBtn(context, 'global_mode_adaptive'.tr(), () => context.read<DualNBackBloc>().add(const ShowPreTraining(adaptive: true)), isDark, isPrimary: true, icon: Icons.auto_graph_rounded), const SizedBox(height: 16),
-          _menuBtn(context, 'global_mode_manual'.tr(), () => context.read<DualNBackBloc>().add(const ShowPreTraining(adaptive: false)), isDark, icon: Icons.tune_rounded), const SizedBox(height: 40),
-          _menuBtn(context, 'global_analytics'.tr(), () => context.read<DualNBackBloc>().add(ShowHistory()), isDark, icon: Icons.insights_rounded, isSecondary: true), const SizedBox(height: 16),
-          _menuBtn(context, 'global_settings'.tr(), () => context.read<DualNBackBloc>().add(ShowSettings()), isDark, icon: Icons.settings_rounded, isSecondary: true), const SizedBox(height: 32),
-          _menuBtn(context, 'global_exit_module'.tr(), () => Navigator.pop(context), isDark, icon: Icons.power_settings_new_rounded, isDanger: true),
-        ],
+  Widget _buildMenu(BuildContext context, DualNBackState state, bool isDark) {
+    final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
+    final Color cardBg = isDark ? Colors.white.withAlpha(15) : accent.withAlpha(10);
+    final Color borderColor = isDark ? Colors.white12 : accent.withAlpha(30);
+    final Color textColor = isDark ? Colors.white : const Color(0xFF1E293B);
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // --- UPRAVENÁ HLAVNÍ IKONA S TLAČÍTKEM NÁPOVĚDY ---
+            Stack(
+              alignment: Alignment.topRight,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  child: Icon(Icons.memory_rounded, size: 80, color: accent.withAlpha(150)),
+                ),
+                Positioned(
+                  top: 0, right: 0,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: () => _showModuleInfoDialog(context, isDark, accent),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: accent.withAlpha(20),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: accent.withAlpha(50)),
+                        ),
+                        child: Icon(Icons.help_outline_rounded, size: 20, color: accent),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 30),
+
+            Container(
+              width: 320,
+              margin: const EdgeInsets.only(bottom: 32),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: borderColor, width: 1.5),
+              ),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 50,
+                    height: 50,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        CircularProgressIndicator(
+                          value: state.dailyGoal > 0 ? (state.dailyCount / state.dailyGoal).clamp(0.0, 1.0) : 0,
+                          backgroundColor: accent.withAlpha(30),
+                          color: state.dailyCount >= state.dailyGoal ? Colors.greenAccent : accent,
+                          strokeWidth: 5,
+                          strokeCap: StrokeCap.round,
+                        ),
+                        Center(
+                          child: Icon(
+                            state.dailyCount >= state.dailyGoal ? Icons.check_rounded : Icons.fitness_center_rounded, 
+                            color: state.dailyCount >= state.dailyGoal ? Colors.greenAccent : accent, 
+                            size: 20
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'dnb_daily_progress'.tr().toUpperCase(),
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: accent, letterSpacing: 1.5),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              '${state.dailyCount}',
+                              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: textColor),
+                            ),
+                            Text(
+                              ' / ${state.dailyGoal}',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white54 : Colors.black54),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            _menuBtn(context, 'global_mode_adaptive'.tr(), () => context.read<DualNBackBloc>().add(const ShowPreTraining(adaptive: true)), isDark, isPrimary: true, icon: Icons.auto_graph_rounded), const SizedBox(height: 16),
+            _menuBtn(context, 'global_mode_manual'.tr(), () => context.read<DualNBackBloc>().add(const ShowPreTraining(adaptive: false)), isDark, icon: Icons.tune_rounded), const SizedBox(height: 32),
+            _menuBtn(context, 'global_analytics'.tr(), () => context.read<DualNBackBloc>().add(ShowHistory()), isDark, icon: Icons.insights_rounded, isSecondary: true), const SizedBox(height: 16),
+            _menuBtn(context, 'global_settings'.tr(), () => context.read<DualNBackBloc>().add(ShowSettings()), isDark, icon: Icons.settings_rounded, isSecondary: true), const SizedBox(height: 32),
+            _menuBtn(context, 'global_exit_module'.tr(), () => Navigator.pop(context), isDark, icon: Icons.power_settings_new_rounded, isDanger: true),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
@@ -223,7 +482,33 @@ class DualNBackScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const SizedBox(height: 40),
+          const SizedBox(height: 20),
+          
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24), padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(color: isDark ? const Color(0xFF1A1A2E).withAlpha(150) : Colors.white.withAlpha(150), borderRadius: BorderRadius.circular(32), border: Border.all(color: isDark ? Colors.white12 : accent.withAlpha(20), width: 1.5)),
+            child: Column(
+              children: [
+                Text('dnb_daily_goal'.tr().toUpperCase(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2), textAlign: TextAlign.center), const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Slider(
+                        value: state.dailyGoal.toDouble(), 
+                        min: 10, max: 30, divisions: 20, 
+                        activeColor: accent, 
+                        inactiveColor: isDark ? Colors.white12 : Colors.black12, 
+                        onChanged: (val) => context.read<DualNBackBloc>().add(UpdateDailyGoalEvent(val.toInt()))
+                      )
+                    ), 
+                    Text("${state.dailyGoal}", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor))
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 24),
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 24), padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(color: isDark ? const Color(0xFF1A1A2E).withAlpha(150) : Colors.white.withAlpha(150), borderRadius: BorderRadius.circular(32), border: Border.all(color: isDark ? Colors.white12 : accent.withAlpha(20), width: 1.5)),
@@ -296,21 +581,21 @@ class DualNBackScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHistory(BuildContext context, DualNBackState state, bool isDark) {
+  Widget _buildHistory(BuildContext context, DualNBackState state, bool isDark, bool is24h) {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
     return DefaultTabController(
       length: 2,
       child: Column(
         children: [
           TabBar(indicatorColor: accent, labelColor: accent, unselectedLabelColor: isDark ? Colors.white38 : Colors.black38, tabs: [Tab(icon: const Icon(Icons.auto_graph_rounded), text: 'global_tab_adaptive'.tr()), Tab(icon: const Icon(Icons.tune_rounded), text: 'global_tab_manual'.tr())]),
-          Expanded(child: TabBarView(children: [SingleChildScrollView(padding: const EdgeInsets.only(top: 20), child: _buildGraph(context, state, true, 'dnb_graph_adaptive'.tr(), isDark)), SingleChildScrollView(padding: const EdgeInsets.only(top: 20), child: _buildGraph(context, state, false, 'dnb_graph_manual'.tr(), isDark))])),
+          Expanded(child: TabBarView(children: [SingleChildScrollView(padding: const EdgeInsets.only(top: 20), child: _buildGraph(context, state, true, 'dnb_graph_adaptive'.tr(), isDark, is24h)), SingleChildScrollView(padding: const EdgeInsets.only(top: 20), child: _buildGraph(context, state, false, 'dnb_graph_manual'.tr(), isDark, is24h))])),
           const SizedBox(height: 20), _menuBtn(context, 'global_btn_back'.tr(), () => context.read<DualNBackBloc>().add(ResetDualNBack()), isDark), const SizedBox(height: 40),
         ],
       ),
     );
   }
 
-  Widget _buildGraph(BuildContext context, DualNBackState state, bool adaptive, String title, bool isDark) {
+  Widget _buildGraph(BuildContext context, DualNBackState state, bool adaptive, String title, bool isDark, bool is24h) {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
     final history = state.history.where((e) => e.isAdaptive == adaptive).toList();
     
@@ -329,12 +614,9 @@ class DualNBackScreen extends StatelessWidget {
       if (pts > maxPoints) maxPoints = pts;
     }
 
-    // Načtení preferovaného formátu času z globálního nastavení
-    final bool is24h = context.read<SettingsBloc>().state.is24HourFormat;
-    final DateFormat timeFormat = is24h ? DateFormat('HH:mm') : DateFormat('h:mm a');
+    final String langCode = context.locale.languageCode;
     final DateFormat dateFormat = DateFormat('dd.MM.yyyy');
 
-    // Seskupení podle dnů
     Map<String, List<DualNBackHistoryItem>> groupedHistory = {};
     for (var item in history) {
       String dayKey = dateFormat.format(item.date);
@@ -345,22 +627,20 @@ class DualNBackScreen extends StatelessWidget {
     List<Widget> graphColumns = [];
     
     groupedHistory.forEach((dateString, dayItems) {
-      // Datum a svislá oddělovací čára
       graphColumns.add(
         Padding(
-          padding: const EdgeInsets.only(left: 8.0, right: 16.0, bottom: 20),
+          padding: const EdgeInsets.only(right: 16.0), 
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.start, 
+            mainAxisAlignment: MainAxisAlignment.end, 
             children: [
-              Text(dateString, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: accent)),
-              const SizedBox(height: 10),
-              Container(width: 2, height: 200, color: isDark ? Colors.white12 : Colors.black12), 
+              Container(width: 2, height: 140, color: isDark ? Colors.white12 : Colors.black12), 
+              const SizedBox(height: 12),
+              Text(dateString, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: accent)),
             ],
           ),
         )
       );
 
-      // Sloupce tréninků v daném dni
       for (var item in dayItems) {
         double pts = calculatePoints(item);
         double heightFactor = pts / maxPoints;
@@ -374,8 +654,28 @@ class DualNBackScreen extends StatelessWidget {
           barColor = Color.lerp(Colors.redAccent, Colors.greenAccent, lerpFactor) ?? Colors.greenAccent;
         }
 
-        String speedStr = item.isVariableSpeed ? "1.5-2.5s" : "${(item.speedMs / 1000).toStringAsFixed(1)}s";
-        String timeStr = timeFormat.format(item.date);
+        String speedStr = item.isVariableSpeed ? "VAR" : "${(item.speedMs / 1000).toStringAsFixed(1)}s";
+
+        String timeStr;
+        if (is24h) {
+          timeStr = DateFormat('HH:mm').format(item.date);
+        } else {
+          int h = item.date.hour;
+          int m = item.date.minute;
+          String mStr = m.toString().padLeft(2, '0');
+          bool isPm = h >= 12;
+          int hour12 = h % 12 == 0 ? 12 : h % 12;
+
+          String suffix;
+          if (langCode == 'cs') {
+            suffix = isPm ? 'odp.' : 'dop.';
+          } else if (langCode == 'de') {
+            suffix = isPm ? 'nachm.' : 'vorm.';
+          } else {
+            suffix = isPm ? 'PM' : 'AM';
+          }
+          timeStr = '$hour12:$mStr $suffix';
+        }
 
         graphColumns.add(
           Padding(
@@ -383,15 +683,16 @@ class DualNBackScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Text(timeStr, style: TextStyle(fontSize: 9, color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 6),
                 Text('${pts.round()} ${'global_pts'.tr()}', style: TextStyle(fontSize: 11, color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w900)),
-                const SizedBox(height: 4),
-                Text('N=${item.nLevel}', style: TextStyle(fontSize: 10, color: isDark ? Colors.white70 : Colors.black54, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
-                RotatedBox(quarterTurns: 3, child: Text(speedStr, style: TextStyle(fontSize: 9, color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.w600))),
-                const SizedBox(height: 8),
                 Container(width: 30, height: 120 * heightFactor + 10, decoration: BoxDecoration(color: barColor, borderRadius: BorderRadius.circular(6), boxShadow: [BoxShadow(color: barColor.withAlpha(100), blurRadius: 4)])),
+                const SizedBox(height: 10),
+                Text('N=${item.nLevel}', style: TextStyle(fontSize: 10, color: isDark ? Colors.white70 : Colors.black54, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(speedStr, style: TextStyle(fontSize: 9, color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                Text(timeStr, style: TextStyle(fontSize: 9, color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 28), 
               ],
             ),
           )
@@ -406,7 +707,7 @@ class DualNBackScreen extends StatelessWidget {
         children: [
           Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white : const Color(0xFF1E293B))), const SizedBox(height: 24),
           SizedBox(
-            height: 300, 
+            height: 320, 
             width: double.infinity,
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal, 

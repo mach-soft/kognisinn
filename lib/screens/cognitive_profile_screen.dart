@@ -224,7 +224,7 @@ class _CognitiveProfileScreenState extends State<CognitiveProfileScreen> {
                           const SizedBox(height: 20),
                           _buildRadarChart(isDark, accent),
                           const SizedBox(height: 40),
-                          _buildStatRows(context, isDark, accent), // Přidán context
+                          _buildStatRows(context, isDark, accent),
                           const SizedBox(height: 30),
                           
                           Wrap(
@@ -358,7 +358,6 @@ class _CognitiveProfileScreenState extends State<CognitiveProfileScreen> {
     );
   }
 
-  // PŘIDÁN CONTEXT JAKO PARAMETR PRO DIALOG
   Widget _buildStatRows(BuildContext context, bool isDark, Color accent) {
     double totalScore = (_scoreWorkingMemory + _scoreVisuospatial + _scoreExecutive + _scoreAssociative + _scoreAttention) / 5;
 
@@ -389,17 +388,66 @@ class _CognitiveProfileScreenState extends State<CognitiveProfileScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          _statRow(context, 'profile_stat_wm'.tr(), _scoreWorkingMemory, _valWorkingMemory, isDark, accent),
-          _statRow(context, 'profile_stat_vs'.tr(), _scoreVisuospatial, _valVisuospatial, isDark, accent),
-          _statRow(context, 'profile_stat_exe'.tr(), _scoreExecutive, _valExecutive, isDark, accent),
-          _statRow(context, 'profile_stat_asc'.tr(), _scoreAssociative, _valAssociative, isDark, accent),
-          _statRow(context, 'profile_stat_att'.tr(), _scoreAttention, _valAttention, isDark, accent),
+          // ZDE VKLÁDÁME "domainKey" PRO SPRÁVNÉ NAČTENÍ PŘEKLADU V DIALOGU
+          _statRow(context, 'profile_stat_wm'.tr(), 'wm', _scoreWorkingMemory, _valWorkingMemory, isDark, accent),
+          _statRow(context, 'profile_stat_vs'.tr(), 'vs', _scoreVisuospatial, _valVisuospatial, isDark, accent),
+          _statRow(context, 'profile_stat_exe'.tr(), 'exe', _scoreExecutive, _valExecutive, isDark, accent),
+          _statRow(context, 'profile_stat_asc'.tr(), 'asc', _scoreAssociative, _valAssociative, isDark, accent),
+          _statRow(context, 'profile_stat_att'.tr(), 'att', _scoreAttention, _valAttention, isDark, accent),
         ],
       ),
     );
   }
 
-  // --- WIDGET PRO VALIDITU (KLIKACÍ S DIALOGEM) ---
+  // --- NOVÁ FUNKCE PRO VYSVĚTLUJÍCÍ DIALOG K DOMÉNĚ ---
+  void _showDomainInfoDialog(BuildContext context, String title, String domainKey, Color accent, bool isDark) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E1E2C) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(title, style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildDialogSection('profile_info_hdr_desc'.tr(), 'profile_info_${domainKey}_desc'.tr(), Icons.psychology_rounded, accent, isDark),
+              const SizedBox(height: 16),
+              _buildDialogSection('profile_info_hdr_prac'.tr(), 'profile_info_${domainKey}_prac'.tr(), Icons.lightbulb_outline_rounded, Colors.orangeAccent, isDark),
+              const SizedBox(height: 16),
+              _buildDialogSection('profile_info_hdr_calc'.tr(), 'profile_info_${domainKey}_calc'.tr(), Icons.calculate_outlined, const Color(0xFF00E676), isDark),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('OK', style: TextStyle(color: accent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDialogSection(String title, String content, IconData icon, Color color, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 8),
+            Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color, letterSpacing: 1.2)),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(content, style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.black87, height: 1.4)),
+      ],
+    );
+  }
+
   Widget _buildValidityBadge(BuildContext context, int validity, bool isDark) {
     Color color;
     if (validity == 0) {
@@ -470,21 +518,46 @@ class _CognitiveProfileScreenState extends State<CognitiveProfileScreen> {
     );
   }
 
-  // PŘIDÁN CONTEXT DO SIGNATURY
-  Widget _statRow(BuildContext context, String label, double score, int validity, bool isDark, Color accent) {
+  // --- UPRAVENÁ ŘÁDKA METRIKY (PŘIDÁNO KLIKNUTÍ A IKONKA) ---
+    // --- UPRAVENÁ ŘÁDKA METRIKY (OPRAVA OVERFLOW PRO DLOUHÉ TEXTY) ---
+  Widget _statRow(BuildContext context, String label, String domainKey, double score, int validity, bool isDark, Color accent) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black87)),
-              const SizedBox(height: 6),
-              _buildValidityBadge(context, validity, isDark),
-            ],
+          // 1. ZDE JE EXPANDED: Zabrání tomu, aby text vytlačil skóre z obrazovky
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () => _showDomainInfoDialog(context, label, domainKey, accent, isDark),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2.0, horizontal: 4.0),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // 2. ZDE JE FLEXIBLE: Zalomení textu, pokud je moc dlouhý (např. v němčině)
+                          Flexible(
+                            child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black87)),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(Icons.help_outline_rounded, size: 14, color: isDark ? Colors.white38 : Colors.black38),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                _buildValidityBadge(context, validity, isDark),
+              ],
+            ),
           ),
+          const SizedBox(width: 12), // Mezera mezi dlouhým textem a boxem se skóre
           Container(
             width: 50, padding: const EdgeInsets.symmetric(vertical: 4),
             alignment: Alignment.center,
@@ -495,4 +568,5 @@ class _CognitiveProfileScreenState extends State<CognitiveProfileScreen> {
       ),
     );
   }
+
 }

@@ -1,11 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-permission
-        android:name="android.permission.VIBRATE"/>
-    <application
+    '<uses-permission
+        android:name="android.permission.VIBRATE"/>'
+        <application
         android:label="kognix"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon"
-        android:enableOnBackInvokedCallback="false">
+        android:icon="@mipmap/ic_launcher"
+        android:enableOnBackInvokedCallback="false"
+        android:allowBackup="false">
+
         <meta-data
             android:name="io.flutter.embedding.android.EnableImpeller"
             android:value="false"/>

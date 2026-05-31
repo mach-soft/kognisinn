@@ -1,3 +1,16 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // ZÁKLADNÍ FIREBASE PLUGIN
+        classpath("com.google.gms:google-services:4.4.1")
+        // KLÍČOVÝ PLUGIN PRO CRASHLYTICS (Bez tohoto se data neodešlou!)
+        classpath("com.google.firebase:firebase-crashlytics-gradle:2.9.9")
+    }
+}
+
 allprojects {
     repositories {
         google()

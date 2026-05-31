@@ -1,4 +1,4 @@
-package com.example.kognix
+package eu.mach.kognix
 
 import io.flutter.embedding.android.FlutterActivity
 

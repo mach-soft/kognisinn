@@ -1,13 +1,23 @@
 plugins {
     id("com.android.application")
+    // START: FlutterFire Configuration
+    id("com.google.gms.google-services")
+    // END: FlutterFire Configuration
+    
+    // PŘIDÁNO: Aktivace pluginu Crashlytics na úrovni aplikace
+    id("com.google.firebase.crashlytics")
+    
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
-    namespace = "com.example.kognix"
-    compileSdk = flutter.compileSdkVersion
+    namespace = "eu.mach.kognix"
+    
+    // ZMĚNA: AndroidX knihovny vyžadují kompilaci proti API 36
+    compileSdk = 36 
+
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -21,11 +31,13 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.kognix"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        applicationId = "eu.mach.kognix"
+        
+        minSdk = flutter.minSdkVersion 
+        
+        // ZMĚNA: Cílíme na nejnovější API 36
+        targetSdk = 36 
+        
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

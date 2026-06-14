@@ -2,12 +2,20 @@
 
 An advanced, cross-platform mobile application focused on rigorous cognitive enhancement and psychometric analytics. Built with **Flutter** and **Dart**, this project leverages adaptive learning algorithms to push the boundaries of working memory, attention, and visuospatial processing.
 
-## 🔒 Privacy by Design & 100% Local Data
+## ⚠️ Beta Notice & Experimental Features
 
-Cognitive performance and psychometric results are highly sensitive personal data. This application is engineered with a strict **local-first paradigm**:
+Please note that the integrations with **Firebase** and **Wiredash** are currently in **Beta**. 
+* **Wiredash:** Used for gathering user feedback and bug reports.
+* **Firebase:** Implemented for optional backend services and telemetry.
+
+These features are experimental. For users prioritizing absolute data sovereignty, all telemetry and network-dependent features can be completely disabled via the `useTelemetry` toggle in the settings, reverting the application to a strict standalone offline mode.
+
+## 🔒 Privacy by Design & Local-First Paradigm
+
+Cognitive performance and psychometric results are highly sensitive personal data. When telemetry is disabled, this application is engineered with a strict **local-first paradigm**:
 * **Zero Cloud Sync:** No test results, progression histories, or cognitive profiles are ever transmitted to remote servers. 
 * **On-Device Analytics:** All complex data mapping, median calculations, and chart generation are processed strictly locally.
-* **Fully Offline:** The core application requires no internet connection to function, ensuring total user anonymity and data sovereignty.
+* **Fully Offline:** The core application requires no internet connection to function, ensuring total user anonymity.
 
 ## 🧠 Core Modules
 

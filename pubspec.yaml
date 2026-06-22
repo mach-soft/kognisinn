@@ -1,0 +1,58 @@
+name: cognitive_trainer
+description: "Aplikace pro kognitivní trénink"
+publish_to: 'none'
+version: 0.9.0-beta
+
+environment:
+  sdk: '>=3.2.3 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: any
+  flutter_bloc: any
+  equatable: any
+  flutter_tts: any
+  shared_preferences: ^2.5.5
+  app_settings: ^5.1.1 # PŘIDÁNO: Přímé otevření nastavení telefonu z onboarding testu
+  google_fonts: any
+  audioplayers: any 
+  easy_localization: ^3.0.8
+  easy_localization_loader: ^2.0.2
+  vibration: ^3.1.8
+  url_launcher: ^6.3.2
+  fl_chart: ^1.2.0
+  firebase_core: ^4.9.0
+  firebase_crashlytics: ^5.2.2
+  wiredash: ^2.6.0
+  package_info_plus: ^10.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: any
+  flutter_launcher_icons: any
+  flutter_native_splash: any
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/logo.png
+    - assets/icon.png
+    - assets/translations/
+
+# --- NASTAVENÍ IKONY APLIKACE ---
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon.png"
+  min_sdk_android: 21
+
+# --- NASTAVENÍ ÚVODNÍ OBRAZOVKY (SPLASH SCREEN) ---
+flutter_native_splash:
+  color: "#0B0F19"
+  image: "assets/logo.png"
+  fullscreen: true
+  android_12:
+    image: "assets/logo.png"
+    icon_background_color: "#B8E8F4"

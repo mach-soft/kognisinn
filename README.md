@@ -1,6 +1,6 @@
-# Kognix: Privacy-First Neurocognitive Trainer
+# Kognisinn: Privacy-First Neurocognitive Trainer
 
-A scientifically grounded, 100% offline mobile application for cognitive assessment and training. Developed with an emphasis on absolute data privacy, Kognix features industry-standard tests to help you measure and expand your cognitive baseline.
+A scientifically grounded, 100% offline mobile application for cognitive assessment and training. Developed with an emphasis on absolute data privacy, Kognisinn features industry-standard tests to help you measure and expand your cognitive baseline.
 
 *All data stays on your device. No ads. No hidden tracking.*
 
@@ -27,7 +27,7 @@ A scientifically grounded, 100% offline mobile application for cognitive assessm
 
 ## 🧠 Core Modules
 
-Kognix integrates five scientifically validated cognitive tasks, each targeting a specific executive function:
+Kognisinn integrates five scientifically validated cognitive tasks, each targeting a specific executive function:
 
 * **Dual N-Back:** Enhances working memory capacity and fluid intelligence. Features both adaptive and manual modes.
 * **Stroop Test:** Measures cognitive flexibility and the ability to suppress automatic responses (inhibition).
@@ -52,13 +52,13 @@ This application was built from the ground up to respect user privacy.
 
 ## 🚀 Installation (Android)
 
-Since Kognix is currently in early beta, it is distributed directly via GitHub Releases (Sideloading).
+Since Kognisinn is currently in early beta, it is distributed directly via GitHub Releases (Sideloading).
 
 1. Go to the [Releases](../../releases) page of this repository.
 2. Download the latest `app-release.apk` file under the **Assets** section.
 3. Open the downloaded file on your Android device. 
 4. If prompted, grant your browser or file manager permission to "Install unknown apps".
-5. Install and launch Kognix.
+5. Install and launch Kognisinn.
 
 ---
 

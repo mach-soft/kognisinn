@@ -63,6 +63,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '204120873930',
     projectId: 'kognix-83dbd',
     storageBucket: 'kognix-83dbd.firebasestorage.app',
-    iosBundleId: 'com.example.kognix',
+    iosBundleId: 'com.example.kognisinn',
   );
 }

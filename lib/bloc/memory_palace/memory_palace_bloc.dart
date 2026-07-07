@@ -99,6 +99,21 @@ class MemoryPalaceBloc extends Bloc<PalaceEvent, MemoryPalaceState> {
   int _processId = 0;
   SharedPreferences? _prefs;
 
+  // NOVÉ: Jediný zdroj pravdy pro výpočet KCI
+  static int calculateKci(int rawAssociations) {
+    if (rawAssociations <= 0) return 0;
+    double score = 0;
+    if (rawAssociations <= 10) {
+      score = (rawAssociations / 10.0) * 100.0;
+    } else {
+      score = 100.0 + ((rawAssociations - 10) / 40.0) * 100.0;
+    }
+    return score.round().clamp(0, 250);
+  }
+
+
+  
+
     final List<String> _allLocations = [
     'palace_loc_door', 'palace_loc_shoerack', 'palace_loc_mirror', 'palace_loc_couch', 
     'palace_loc_tv', 'palace_loc_coffeetable', 'palace_loc_bookcase', 'palace_loc_diningtable', 
@@ -116,6 +131,7 @@ class MemoryPalaceBloc extends Bloc<PalaceEvent, MemoryPalaceState> {
     'palace_item_coin', 'palace_item_ring', 'palace_item_cup', 'palace_item_spoon'
   ];
 
+  
 
   MemoryPalaceBloc() : super(const MemoryPalaceState()) {
     on<InitPalace>(_onInitPalace);
@@ -247,25 +263,27 @@ class MemoryPalaceBloc extends Bloc<PalaceEvent, MemoryPalaceState> {
     }
   }
 
-    void _saveResult(Emitter<MemoryPalaceState> emit) {
-    // 1. Zápis klasické interní historie (pro tabulku ve výsledcích)
+        void _saveResult(Emitter<MemoryPalaceState> emit) {
+    // 1. Modul si uloží svá surová data pro interní historii (počet asociací, např. 14)
     final newItem = PalaceHistoryItem(DateTime.now(), state.currentSpan, state.score, state.isAdaptive);
     final newHistory = List<PalaceHistoryItem>.from(state.history)..add(newItem);
     _prefs?.setStringList('palace_history', newHistory.map((e) => e.toRawString()).toList());
     
-    // 2. Odeslání do KCI profilu (pouze pokud šlo o adaptivní test)
+    // 2. Odeslání do Kognitivního profilu
     if (state.isAdaptive && _prefs != null) {
       final nowStr = DateTime.now().toIso8601String();
-      final scoreVal = state.currentSpan.toDouble();
       
-      // A: Surová historie pro pavučinový graf (držíme jen posledních 50 záznamů)
+      // VÝPOČET PŘÍMO V MODULU: Profilu odesíláme už jen převedené KCI (např. 110)
+      final exportKci = MemoryPalaceBloc.calculateKci(state.score).toDouble(); 
+      
+      // A: Historie pro Profil
       List<String> historyKCI = _prefs!.getStringList('history_palace') ?? [];
-      historyKCI.add(scoreVal.toString());
+      historyKCI.add(exportKci.toString()); 
       if (historyKCI.length > 50) historyKCI.removeAt(0);
       _prefs!.setStringList('history_palace', historyKCI);
       
-      // B: Denní agregát pro graf v modulu (bere nejvyšší hodnotu z daného dne)
-      final today = nowStr.substring(0, 10); // YYYY-MM-DD
+      // B: Denní agregát
+      final today = nowStr.substring(0, 10); 
       List<String> dailyRaw = _prefs!.getStringList('palace_daily_history') ?? [];
       Map<String, double> dailyMap = {};
       
@@ -275,9 +293,9 @@ class MemoryPalaceBloc extends Bloc<PalaceEvent, MemoryPalaceState> {
       }
       
       if (dailyMap.containsKey(today)) {
-        if (scoreVal > dailyMap[today]!) dailyMap[today] = scoreVal;
+        if (exportKci > dailyMap[today]!) dailyMap[today] = exportKci;
       } else {
-        dailyMap[today] = scoreVal;
+        dailyMap[today] = exportKci;
       }
       
       var sortedKeys = dailyMap.keys.toList()..sort();
@@ -292,6 +310,8 @@ class MemoryPalaceBloc extends Bloc<PalaceEvent, MemoryPalaceState> {
 
     emit(state.copyWith(phase: PalacePhase.result, history: newHistory));
   }
+
+
 
 
   @override

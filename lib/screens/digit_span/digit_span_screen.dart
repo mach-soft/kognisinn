@@ -11,68 +11,6 @@ import '../../bloc/digit_span/digit_span_state.dart';
 class DigitSpanScreen extends StatelessWidget {
   const DigitSpanScreen({super.key});
 
-  Future<void> _saveTestToHistory(double newResult) async {
-    final prefs = await SharedPreferences.getInstance();
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-    List<String> dailyHistory = prefs.getStringList('ds_daily_history') ?? [];
-    Map<String, double> dailyMaxes = {};
-
-    for (var entry in dailyHistory) {
-      final parts = entry.split('|');
-      if (parts.length == 2) {
-        dailyMaxes[parts[0]] = double.tryParse(parts[1]) ?? 0.0;
-      }
-    }
-
-    if (dailyMaxes.containsKey(today)) {
-      if (newResult > dailyMaxes[today]!) {
-        dailyMaxes[today] = newResult;
-      }
-    } else {
-      dailyMaxes[today] = newResult;
-    }
-
-    var sortedKeys = dailyMaxes.keys.toList()..sort();
-    if (sortedKeys.length > 10) {
-      sortedKeys = sortedKeys.sublist(sortedKeys.length - 10);
-    }
-
-    List<String> newHistoryToSave = [];
-    List<double> valuesForMedian = [];
-
-    for (var key in sortedKeys) {
-      newHistoryToSave.add('$key|${dailyMaxes[key]}');
-      valuesForMedian.add(dailyMaxes[key]!);
-    }
-
-    await prefs.setStringList('ds_daily_history', newHistoryToSave);
-
-    valuesForMedian.sort();
-    double median = 0.0;
-    int length = valuesForMedian.length;
-    if (length > 0) {
-      if (length % 2 == 1) {
-        median = valuesForMedian[length ~/ 2];
-      } else {
-        median = (valuesForMedian[(length ~/ 2) - 1] + valuesForMedian[length ~/ 2]) / 2;
-      }
-    }
-
-    await prefs.setDouble('metric_digit_span', median);
-    await prefs.setInt('validity_digit_span', length);
-
-    // --- ÚPRAVA: Ukládání formátu s datem pro Digit Span graf ---
-    List<String> dsHistory = prefs.getStringList('history_digit_span') ?? [];
-    String newEntry = '${DateTime.now().toIso8601String()}|${newResult.round()}';
-    dsHistory.add(newEntry);
-    
-    // Omezení délky historie na posledních 50 záznamů, abychom nehltili paměť
-    if (dsHistory.length > 50) dsHistory.removeAt(0);
-    
-    await prefs.setStringList('history_digit_span', dsHistory);
-  }
-
   Future<bool> _showInterruptDialog(BuildContext context, bool isDark) async {
     return await showDialog<bool>(
       context: context,
@@ -156,21 +94,7 @@ class DigitSpanScreen extends StatelessWidget {
           return previous.phase != GamePhase.gameOver && current.phase == GamePhase.gameOver;
         },
         listener: (context, state) async {
-          if (state.gameType == GameType.fastTest) {
-            double finalScore = (state.sequenceLength - 1).toDouble();
-            await _saveTestToHistory(finalScore);
-          } else if (state.gameType == GameType.gameMode) {
-             // Pokud hra končí i v kontinuálním tréninku, uložíme max skóre z toho bloku her
-             int maxScoreInSession = 0;
-             for(var result in state.resultsHistory) {
-                 if(result.isCorrect && result.level > maxScoreInSession) {
-                     maxScoreInSession = result.level;
-                 }
-             }
-             if (maxScoreInSession > 0) {
-                 await _saveTestToHistory(maxScoreInSession.toDouble());
-             }
-          }
+          // Záměrně prázdné - BLoC se stará o veškeré ukládání sám (Single Source of Truth)
         },
         builder: (context, state) {
           bool showBackgroundEffects = state.isEmphaticMode && state.isGamificationEnabled && state.gameType == GameType.gameMode;
@@ -576,8 +500,8 @@ class DigitSpanScreen extends StatelessWidget {
           builder: (context, snapshot) {
             if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
             final prefs = snapshot.data!;
-            // Získání historie profilových dat z shared preferences
-            List<String> rawHistory = prefs.getStringList('history_digit_span') ?? [];
+            // Získání čisté historie v naturálním formátu 
+            List<String> rawHistory = prefs.getStringList('ds_raw_history') ?? [];
 
             return Column(
               children: [
@@ -601,7 +525,7 @@ class DigitSpanScreen extends StatelessWidget {
                             physics: const BouncingScrollPhysics(),
                             child: Column(
                               children: [
-                                _buildGraph(context, rawHistory, isDark, true), // Vykreslení digit span grafu s datumovou historií
+                                _buildGraph(context, rawHistory, isDark, true, state.isGamificationEnabled), 
                               ],
                             ),
                           ),
@@ -622,8 +546,8 @@ class DigitSpanScreen extends StatelessWidget {
     }
   }
 
-  // --- NOVÝ DIGIT SPAN GRAF, POUŽÍVÁ DATA Z HISTORY_DIGIT_SPAN ---
-  Widget _buildGraph(BuildContext context, List<String> rawHistory, bool isDark, bool is24h) {
+  // --- NOVÝ DIGIT SPAN GRAF ---
+  Widget _buildGraph(BuildContext context, List<String> rawHistory, bool isDark, bool is24h, bool isGamificationEnabled) {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
     
     if (rawHistory.isEmpty) {
@@ -635,32 +559,32 @@ class DigitSpanScreen extends StatelessWidget {
       );
     }
 
-    int maxSpan = 1;
     List<Map<String, dynamic>> parsedHistory = [];
+    double maxY = 1.0;
     
     for (var item in rawHistory) {
       if (!item.contains('|')) continue;
       final parts = item.split('|');
-      if (parts.length >= 2) {
+      if (parts.length >= 3) {
         DateTime date = DateTime.tryParse(parts[0]) ?? DateTime.now();
-        int span = int.tryParse(parts[1]) ?? 0;
-        if (span > maxSpan) maxSpan = span;
-        parsedHistory.add({'date': date, 'span': span});
+        GameMode mode = GameMode.values.firstWhere((e) => e.name == parts[1], orElse: () => GameMode.forward);
+        double span = double.tryParse(parts[2]) ?? 0.0;
+        
+        // ZMĚNA: Přepočet na KCI za letu pro graf, pokud je gamifikace aktivní
+        double finalValue = isGamificationEnabled 
+            ? DigitSpanBloc.calculateKci(span, mode).toDouble() 
+            : span;
+            
+        if (finalValue > maxY) maxY = finalValue;
+        
+        parsedHistory.add({'date': date, 'mode': mode, 'value': finalValue, 'rawSpan': span});
       }
     }
 
-    if (parsedHistory.isEmpty) {
-        return Center(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 20.0),
-              child: Text('global_no_data'.tr(), style: TextStyle(color: isDark ? Colors.white54 : Colors.black54)),
-            )
-        );
-    }
+    if (parsedHistory.isEmpty) return const SizedBox.shrink();
 
     final DateFormat dateFormat = DateFormat('dd.MM.yyyy');
     Map<String, List<Map<String, dynamic>>> groupedHistory = {};
-    
     for (var item in parsedHistory) {
       String dayKey = dateFormat.format(item['date']);
       if (!groupedHistory.containsKey(dayKey)) groupedHistory[dayKey] = [];
@@ -685,8 +609,12 @@ class DigitSpanScreen extends StatelessWidget {
       );
 
       for (var item in dayItems) {
-        double heightFactor = item['span'] / (maxSpan > 0 ? maxSpan : 1);
+        double heightFactor = item['value'] / (maxY > 0 ? maxY : 1);
         Color barColor = accent; 
+        
+        // Vizuální odlišení módů
+        if (item['mode'] == GameMode.reverse) barColor = const Color(0xFFFF007F);
+        if (item['mode'] == GameMode.ascending) barColor = const Color(0xFF00E676);
 
         String timeStr = is24h 
             ? DateFormat('HH:mm').format(item['date']) 
@@ -698,7 +626,7 @@ class DigitSpanScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Text('${item['span']}', style: TextStyle(fontSize: 16, color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w900)),
+                Text('${item['value'].toInt()}', style: TextStyle(fontSize: 16, color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 6),
                 Container(
                   width: 34, 
@@ -711,7 +639,9 @@ class DigitSpanScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(timeStr, style: TextStyle(fontSize: 9, color: isDark ? Colors.white70 : Colors.black54, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 28), 
+                if (isGamificationEnabled) 
+                  Text('(${item['rawSpan'].toInt()})', style: TextStyle(fontSize: 8, color: isDark ? Colors.white38 : Colors.black38)),
+                const SizedBox(height: 16), 
               ],
             ),
           )
@@ -729,7 +659,7 @@ class DigitSpanScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text('HISTORIE VÝKONU', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white : const Color(0xFF1E293B))), 
+          Text(isGamificationEnabled ? 'KCI HISTORIE' : 'HISTORIE KAPACIT', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white : const Color(0xFF1E293B))), 
           const SizedBox(height: 24),
           SizedBox(
             height: 260, 

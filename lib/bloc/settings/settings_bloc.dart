@@ -8,6 +8,7 @@ class SettingsState {
   final bool isHapticEnabled;
   final int hapticDuration; 
   final bool is24HourFormat;
+  final bool showGamifiedValues; // PŘIDÁNO: Přepínač gamifikace
 
   const SettingsState({
     this.isDarkMode = false, 
@@ -16,6 +17,7 @@ class SettingsState {
     this.isHapticEnabled = true,
     this.hapticDuration = 500, 
     this.is24HourFormat = true, 
+    this.showGamifiedValues = true, // PŘIDÁNO: Výchozí je ZAPNUTO
   });
 
   SettingsState copyWith({
@@ -25,6 +27,7 @@ class SettingsState {
     bool? isHapticEnabled,
     int? hapticDuration,
     bool? is24HourFormat,
+    bool? showGamifiedValues, // PŘIDÁNO
   }) {
     return SettingsState(
       isDarkMode: isDarkMode ?? this.isDarkMode,
@@ -33,6 +36,7 @@ class SettingsState {
       isHapticEnabled: isHapticEnabled ?? this.isHapticEnabled,
       hapticDuration: hapticDuration ?? this.hapticDuration,
       is24HourFormat: is24HourFormat ?? this.is24HourFormat,
+      showGamifiedValues: showGamifiedValues ?? this.showGamifiedValues, // PŘIDÁNO
     );
   }
 }
@@ -46,6 +50,7 @@ class ToggleMute extends SettingsEvent { final bool isMuted; ToggleMute(this.isM
 class ToggleHaptic extends SettingsEvent { final bool isHapticEnabled; ToggleHaptic(this.isHapticEnabled); }
 class UpdateHapticDuration extends SettingsEvent { final int duration; UpdateHapticDuration(this.duration); } 
 class UpdateTimeFormat extends SettingsEvent { final bool is24h; UpdateTimeFormat(this.is24h); }
+class ToggleGamification extends SettingsEvent { final bool showGamified; ToggleGamification(this.showGamified); } // PŘIDÁNO
 
 class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   
@@ -58,6 +63,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<ToggleHaptic>(_onToggleHaptic);
     on<UpdateHapticDuration>(_onUpdateHapticDuration);
     on<UpdateTimeFormat>(_onUpdateTimeFormat); 
+    on<ToggleGamification>(_onToggleGamification); // PŘIDÁNO
 
     add(LoadSettings());
   }
@@ -72,6 +78,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       isHapticEnabled: prefs.getBool('global_is_haptic') ?? true,
       hapticDuration: prefs.getInt('global_haptic_duration') ?? 500, 
       is24HourFormat: prefs.getBool('global_is_24h') ?? true,
+      showGamifiedValues: prefs.getBool('global_show_gamified') ?? true, // PŘIDÁNO
     ));
   }
 
@@ -109,5 +116,12 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('global_is_24h', event.is24h);
     emit(state.copyWith(is24HourFormat: event.is24h));
+  }
+
+  // PŘIDÁNO: Nová metoda pro zpracování gamifikace
+  Future<void> _onToggleGamification(ToggleGamification event, Emitter<SettingsState> emit) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('global_show_gamified', event.showGamified);
+    emit(state.copyWith(showGamifiedValues: event.showGamified));
   }
 }

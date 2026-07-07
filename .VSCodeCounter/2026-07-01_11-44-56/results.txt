@@ -1,0 +1,193 @@
+Date : 2026-07-01 11:44:56
+Directory : c:\Users\macha\develop\Kognix\kognix
+Total : 94 files,  11777 codes, 464 comments, 1577 blanks, all 13818 lines
+
+Languages
++------------+------------+------------+------------+------------+------------+
+| language   | files      | code       | comment    | blank      | total      |
++------------+------------+------------+------------+------------+------------+
+| Dart       |         32 |      8,706 |        232 |      1,141 |     10,079 |
+| JSON       |         10 |      1,207 |          0 |         23 |      1,230 |
+| C++        |         16 |        577 |        136 |        191 |        904 |
+| XML        |         13 |        538 |         42 |         20 |        600 |
+| CMake      |          8 |        470 |          0 |         92 |        562 |
+| Swift      |          7 |         79 |          7 |         25 |        111 |
+| HTML       |          1 |         79 |         23 |         41 |        143 |
+| Markdown   |          2 |         58 |          0 |         30 |         88 |
+| YAML       |          3 |         56 |         24 |         12 |         92 |
+| Properties |          2 |          7 |          0 |          2 |          9 |
++------------+------------+------------+------------+------------+------------+
+
+Directories
++---------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                                    | files      | code       | comment    | blank      | total      |
++---------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                                       |         94 |     11,777 |        464 |      1,577 |     13,818 |
+| . (Files)                                                                                               |          5 |        112 |         24 |         40 |        176 |
+| android                                                                                                 |         13 |        163 |         40 |         19 |        222 |
+| android (Files)                                                                                         |          1 |          2 |          0 |          1 |          3 |
+| android\app                                                                                             |         11 |        156 |         40 |         17 |        213 |
+| android\app (Files)                                                                                     |          1 |         29 |          0 |          0 |         29 |
+| android\app\src                                                                                         |         10 |        127 |         40 |         17 |        184 |
+| android\app\src\debug                                                                                   |          1 |          3 |          4 |          1 |          8 |
+| android\app\src\main                                                                                    |          8 |        121 |         32 |         15 |        168 |
+| android\app\src\main (Files)                                                                            |          1 |         43 |          0 |          9 |         52 |
+| android\app\src\main\res                                                                                |          7 |         78 |         32 |          6 |        116 |
+| android\app\src\main\res\drawable                                                                       |          1 |          9 |          0 |          1 |         10 |
+| android\app\src\main\res\drawable-v21                                                                   |          1 |          9 |          0 |          1 |         10 |
+| android\app\src\main\res\values                                                                         |          2 |         17 |          9 |          1 |         27 |
+| android\app\src\main\res\values-night                                                                   |          1 |         13 |          9 |          1 |         23 |
+| android\app\src\main\res\values-night-v31                                                               |          1 |         15 |          7 |          1 |         23 |
+| android\app\src\main\res\values-v31                                                                     |          1 |         15 |          7 |          1 |         23 |
+| android\app\src\profile                                                                                 |          1 |          3 |          4 |          1 |          8 |
+| android\gradle                                                                                          |          1 |          5 |          0 |          1 |          6 |
+| android\gradle\wrapper                                                                                  |          1 |          5 |          0 |          1 |          6 |
+| assets                                                                                                  |          3 |      1,029 |          0 |         19 |      1,048 |
+| assets\translations                                                                                     |          3 |      1,029 |          0 |         19 |      1,048 |
+| ios                                                                                                     |         10 |        142 |          4 |         17 |        163 |
+| ios\Runner                                                                                              |          9 |        135 |          2 |         13 |        150 |
+| ios\Runner (Files)                                                                                      |          3 |         19 |          0 |          7 |         26 |
+| ios\RunnerTests                                                                                         |          1 |          7 |          2 |          4 |         13 |
+| ios\Runner\Assets.xcassets                                                                              |          4 |         48 |          0 |          4 |         52 |
+| ios\Runner\Assets.xcassets\AppIcon.appiconset                                                           |          1 |          1 |          0 |          0 |          1 |
+| ios\Runner\Assets.xcassets\LaunchBackground.imageset                                                    |          1 |         21 |          0 |          1 |         22 |
+| ios\Runner\Assets.xcassets\LaunchImage.imageset                                                         |          2 |         26 |          0 |          3 |         29 |
+| ios\Runner\Base.lproj                                                                                   |          2 |         68 |          2 |          2 |         72 |
+| lib                                                                                                     |         32 |      8,706 |        232 |      1,141 |     10,079 |
+| lib (Files)                                                                                             |          2 |        133 |         29 |         24 |        186 |
+| lib\bloc                                                                                                |         15 |      1,991 |         67 |        401 |      2,459 |
+| lib\bloc\calibration                                                                                    |          3 |        117 |          9 |         28 |        154 |
+| lib\bloc\digit_span                                                                                     |          3 |        508 |          3 |        108 |        619 |
+| lib\bloc\e_corsi                                                                                        |          1 |        173 |         17 |         40 |        230 |
+| lib\bloc\memory_palace                                                                                  |          1 |        248 |          8 |         47 |        303 |
+| lib\bloc\multi_n_back                                                                                   |          3 |        637 |         12 |        108 |        757 |
+| lib\bloc\settings                                                                                       |          1 |         96 |          2 |         16 |        114 |
+| lib\bloc\stroop                                                                                         |          3 |        212 |         16 |         54 |        282 |
+| lib\models                                                                                              |          1 |         90 |          1 |         14 |        105 |
+| lib\screens                                                                                             |         14 |      6,492 |        135 |        702 |      7,329 |
+| lib\screens (Files)                                                                                     |          8 |      2,081 |         60 |        206 |      2,347 |
+| lib\screens\calibration                                                                                 |          1 |        965 |         34 |        189 |      1,188 |
+| lib\screens\digit_span                                                                                  |          1 |        820 |          6 |         67 |        893 |
+| lib\screens\e_corsi                                                                                     |          1 |        553 |         11 |         56 |        620 |
+| lib\screens\memory_palace                                                                               |          1 |        647 |          7 |         57 |        711 |
+| lib\screens\multi_n_back                                                                                |          1 |        942 |         12 |         80 |      1,034 |
+| lib\screens\stroop                                                                                      |          1 |        484 |          5 |         47 |        536 |
+| linux                                                                                                   |          9 |        350 |         42 |         94 |        486 |
+| linux (Files)                                                                                           |          1 |        104 |          0 |         25 |        129 |
+| linux\flutter                                                                                           |          4 |        116 |          9 |         27 |        152 |
+| linux\runner                                                                                            |          4 |        130 |         33 |         42 |        205 |
+| macos                                                                                                   |          6 |        465 |          5 |         17 |        487 |
+| macos\Flutter                                                                                           |          1 |         24 |          3 |          4 |         31 |
+| macos\Runner                                                                                            |          4 |        434 |          0 |          9 |        443 |
+| macos\Runner (Files)                                                                                    |          2 |         23 |          0 |          7 |         30 |
+| macos\RunnerTests                                                                                       |          1 |          7 |          2 |          4 |         13 |
+| macos\Runner\Assets.xcassets                                                                            |          1 |         68 |          0 |          1 |         69 |
+| macos\Runner\Assets.xcassets\AppIcon.appiconset                                                         |          1 |         68 |          0 |          1 |         69 |
+| macos\Runner\Base.lproj                                                                                 |          1 |        343 |          0 |          1 |        344 |
+| web                                                                                                     |          2 |        114 |         23 |         42 |        179 |
+| windows                                                                                                 |         14 |        696 |         94 |        188 |        978 |
+| windows (Files)                                                                                         |          1 |         89 |          0 |         20 |        109 |
+| windows\flutter                                                                                         |          4 |        145 |          9 |         29 |        183 |
+| windows\runner                                                                                          |          9 |        462 |         85 |        139 |        686 |
++---------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++---------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| filename                                                                                                | language   | code       | comment    | blank      | total      |
++---------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| c:\Users\macha\develop\Kognix\kognix\README.md                                                          | Markdown   |         55 |          0 |         28 |         83 |
+| c:\Users\macha\develop\Kognix\kognix\analysis_options.yaml                                              | YAML       |          3 |         22 |          4 |         29 |
+| c:\Users\macha\develop\Kognix\kognix\android\app\google-services.json                                   | JSON       |         29 |          0 |          0 |         29 |
+| c:\Users\macha\develop\Kognix\kognix\android\app\src\debug\AndroidManifest.xml                          | XML        |          3 |          4 |          1 |          8 |
+| c:\Users\macha\develop\Kognix\kognix\android\app\src\main\AndroidManifest.xml                           | XML        |         43 |          0 |          9 |         52 |
+| c:\Users\macha\develop\Kognix\kognix\android\app\src\main\res\drawable-v21\launch_background.xml        | XML        |          9 |          0 |          1 |         10 |
+| c:\Users\macha\develop\Kognix\kognix\android\app\src\main\res\drawable\launch_background.xml            | XML        |          9 |          0 |          1 |         10 |
+| c:\Users\macha\develop\Kognix\kognix\android\app\src\main\res\values-night-v31\styles.xml               | XML        |         15 |          7 |          1 |         23 |
+| c:\Users\macha\develop\Kognix\kognix\android\app\src\main\res\values-night\styles.xml                   | XML        |         13 |          9 |          1 |         23 |
+| c:\Users\macha\develop\Kognix\kognix\android\app\src\main\res\values-v31\styles.xml                     | XML        |         15 |          7 |          1 |         23 |
+| c:\Users\macha\develop\Kognix\kognix\android\app\src\main\res\values\colors.xml                         | XML        |          4 |          0 |          0 |          4 |
+| c:\Users\macha\develop\Kognix\kognix\android\app\src\main\res\values\styles.xml                         | XML        |         13 |          9 |          1 |         23 |
+| c:\Users\macha\develop\Kognix\kognix\android\app\src\profile\AndroidManifest.xml                        | XML        |          3 |          4 |          1 |          8 |
+| c:\Users\macha\develop\Kognix\kognix\android\gradle.properties                                          | Properties |          2 |          0 |          1 |          3 |
+| c:\Users\macha\develop\Kognix\kognix\android\gradle\wrapper\gradle-wrapper.properties                   | Properties |          5 |          0 |          1 |          6 |
+| c:\Users\macha\develop\Kognix\kognix\assets\translations\cs.json                                        | JSON       |        343 |          0 |          7 |        350 |
+| c:\Users\macha\develop\Kognix\kognix\assets\translations\de.json                                        | JSON       |        343 |          0 |          6 |        349 |
+| c:\Users\macha\develop\Kognix\kognix\assets\translations\en.json                                        | JSON       |        343 |          0 |          6 |        349 |
+| c:\Users\macha\develop\Kognix\kognix\devtools_options.yaml                                              | YAML       |          3 |          0 |          1 |          4 |
+| c:\Users\macha\develop\Kognix\kognix\firebase.json                                                      | JSON       |          1 |          0 |          0 |          1 |
+| c:\Users\macha\develop\Kognix\kognix\ios\RunnerTests\RunnerTests.swift                                  | Swift      |          7 |          2 |          4 |         13 |
+| c:\Users\macha\develop\Kognix\kognix\ios\Runner\AppDelegate.swift                                       | Swift      |         14 |          0 |          3 |         17 |
+| c:\Users\macha\develop\Kognix\kognix\ios\Runner\Assets.xcassets\AppIcon.appiconset\Contents.json        | JSON       |          1 |          0 |          0 |          1 |
+| c:\Users\macha\develop\Kognix\kognix\ios\Runner\Assets.xcassets\LaunchBackground.imageset\Contents.json | JSON       |         21 |          0 |          1 |         22 |
+| c:\Users\macha\develop\Kognix\kognix\ios\Runner\Assets.xcassets\LaunchImage.imageset\Contents.json      | JSON       |         23 |          0 |          1 |         24 |
+| c:\Users\macha\develop\Kognix\kognix\ios\Runner\Assets.xcassets\LaunchImage.imageset\README.md          | Markdown   |          3 |          0 |          2 |          5 |
+| c:\Users\macha\develop\Kognix\kognix\ios\Runner\Base.lproj\LaunchScreen.storyboard                      | XML        |         43 |          1 |          1 |         45 |
+| c:\Users\macha\develop\Kognix\kognix\ios\Runner\Base.lproj\Main.storyboard                              | XML        |         25 |          1 |          1 |         27 |
+| c:\Users\macha\develop\Kognix\kognix\ios\Runner\Runner-Bridging-Header.h                                | C++        |          1 |          0 |          1 |          2 |
+| c:\Users\macha\develop\Kognix\kognix\ios\Runner\SceneDelegate.swift                                     | Swift      |          4 |          0 |          3 |          7 |
+| c:\Users\macha\develop\Kognix\kognix\lib\bloc\calibration\calibration_bloc.dart                         | Dart       |         50 |          6 |         13 |         69 |
+| c:\Users\macha\develop\Kognix\kognix\lib\bloc\calibration\calibration_event.dart                        | Dart       |         25 |          1 |          9 |         35 |
+| c:\Users\macha\develop\Kognix\kognix\lib\bloc\calibration\calibration_state.dart                        | Dart       |         42 |          2 |          6 |         50 |
+| c:\Users\macha\develop\Kognix\kognix\lib\bloc\digit_span\digit_span_bloc.dart                           | Dart       |        324 |          1 |         71 |        396 |
+| c:\Users\macha\develop\Kognix\kognix\lib\bloc\digit_span\digit_span_event.dart                          | Dart       |         66 |          0 |         19 |         85 |
+| c:\Users\macha\develop\Kognix\kognix\lib\bloc\digit_span\digit_span_state.dart                          | Dart       |        118 |          2 |         18 |        138 |
+| c:\Users\macha\develop\Kognix\kognix\lib\bloc\e_corsi\e_corsi_bloc.dart                                 | Dart       |        173 |         17 |         40 |        230 |
+| c:\Users\macha\develop\Kognix\kognix\lib\bloc\memory_palace\memory_palace_bloc.dart                     | Dart       |        248 |          8 |         47 |        303 |
+| c:\Users\macha\develop\Kognix\kognix\lib\bloc\multi_n_back\multi_n_back_bloc.dart                       | Dart       |        408 |          7 |         78 |        493 |
+| c:\Users\macha\develop\Kognix\kognix\lib\bloc\multi_n_back\multi_n_back_event.dart                      | Dart       |         62 |          0 |         16 |         78 |
+| c:\Users\macha\develop\Kognix\kognix\lib\bloc\multi_n_back\multi_n_back_state.dart                      | Dart       |        167 |          5 |         14 |        186 |
+| c:\Users\macha\develop\Kognix\kognix\lib\bloc\settings\settings_bloc.dart                               | Dart       |         96 |          2 |         16 |        114 |
+| c:\Users\macha\develop\Kognix\kognix\lib\bloc\stroop\stroop_bloc.dart                                   | Dart       |        119 |         14 |         37 |        170 |
+| c:\Users\macha\develop\Kognix\kognix\lib\bloc\stroop\stroop_event.dart                                  | Dart       |         17 |          0 |          5 |         22 |
+| c:\Users\macha\develop\Kognix\kognix\lib\bloc\stroop\stroop_state.dart                                  | Dart       |         76 |          2 |         12 |         90 |
+| c:\Users\macha\develop\Kognix\kognix\lib\firebase_options.dart                                          | Dart       |         53 |         12 |          4 |         69 |
+| c:\Users\macha\develop\Kognix\kognix\lib\main.dart                                                      | Dart       |         80 |         17 |         20 |        117 |
+| c:\Users\macha\develop\Kognix\kognix\lib\models\cognitive_models.dart                                   | Dart       |         90 |          1 |         14 |        105 |
+| c:\Users\macha\develop\Kognix\kognix\lib\screens\about_app_screen.dart                                  | Dart       |        224 |         12 |         15 |        251 |
+| c:\Users\macha\develop\Kognix\kognix\lib\screens\calibration\calibration_screen.dart                    | Dart       |        965 |         34 |        189 |      1,188 |
+| c:\Users\macha\develop\Kognix\kognix\lib\screens\cognitive_profile_screen.dart                          | Dart       |        650 |          4 |         89 |        743 |
+| c:\Users\macha\develop\Kognix\kognix\lib\screens\debug_calibration_screen.dart                          | Dart       |         94 |          9 |         17 |        120 |
+| c:\Users\macha\develop\Kognix\kognix\lib\screens\digit_span\digit_span_screen.dart                      | Dart       |        820 |          6 |         67 |        893 |
+| c:\Users\macha\develop\Kognix\kognix\lib\screens\e_corsi\e_corsi_screen.dart                            | Dart       |        553 |         11 |         56 |        620 |
+| c:\Users\macha\develop\Kognix\kognix\lib\screens\global_settings_screen.dart                            | Dart       |        217 |          3 |         21 |        241 |
+| c:\Users\macha\develop\Kognix\kognix\lib\screens\language_selection_screen.dart                         | Dart       |         69 |          4 |          8 |         81 |
+| c:\Users\macha\develop\Kognix\kognix\lib\screens\main_menu_screen.dart                                  | Dart       |        314 |         11 |         19 |        344 |
+| c:\Users\macha\develop\Kognix\kognix\lib\screens\memory_palace\memory_palace_screen.dart                | Dart       |        647 |          7 |         57 |        711 |
+| c:\Users\macha\develop\Kognix\kognix\lib\screens\multi_n_back\multi_n_back_screen.dart                  | Dart       |        942 |         12 |         80 |      1,034 |
+| c:\Users\macha\develop\Kognix\kognix\lib\screens\onboarding_screen.dart                                 | Dart       |        390 |         16 |         23 |        429 |
+| c:\Users\macha\develop\Kognix\kognix\lib\screens\stroop\stroop_screen.dart                              | Dart       |        484 |          5 |         47 |        536 |
+| c:\Users\macha\develop\Kognix\kognix\lib\screens\theme_selection_screen.dart                            | Dart       |        123 |          1 |         14 |        138 |
+| c:\Users\macha\develop\Kognix\kognix\linux\CMakeLists.txt                                               | CMake      |        104 |          0 |         25 |        129 |
+| c:\Users\macha\develop\Kognix\kognix\linux\flutter\CMakeLists.txt                                       | CMake      |         79 |          0 |         10 |         89 |
+| c:\Users\macha\develop\Kognix\kognix\linux\flutter\generated_plugin_registrant.cc                       | C++        |         11 |          4 |          5 |         20 |
+| c:\Users\macha\develop\Kognix\kognix\linux\flutter\generated_plugin_registrant.h                        | C++        |          5 |          5 |          6 |         16 |
+| c:\Users\macha\develop\Kognix\kognix\linux\flutter\generated_plugins.cmake                              | CMake      |         21 |          0 |          6 |         27 |
+| c:\Users\macha\develop\Kognix\kognix\linux\runner\CMakeLists.txt                                        | CMake      |         21 |          0 |          6 |         27 |
+| c:\Users\macha\develop\Kognix\kognix\linux\runner\main.cc                                               | C++        |          5 |          0 |          2 |          7 |
+| c:\Users\macha\develop\Kognix\kognix\linux\runner\my_application.cc                                     | C++        |         94 |         26 |         29 |        149 |
+| c:\Users\macha\develop\Kognix\kognix\linux\runner\my_application.h                                      | C++        |         10 |          7 |          5 |         22 |
+| c:\Users\macha\develop\Kognix\kognix\macos\Flutter\GeneratedPluginRegistrant.swift                      | Swift      |         24 |          3 |          4 |         31 |
+| c:\Users\macha\develop\Kognix\kognix\macos\RunnerTests\RunnerTests.swift                                | Swift      |          7 |          2 |          4 |         13 |
+| c:\Users\macha\develop\Kognix\kognix\macos\Runner\AppDelegate.swift                                     | Swift      |         11 |          0 |          3 |         14 |
+| c:\Users\macha\develop\Kognix\kognix\macos\Runner\Assets.xcassets\AppIcon.appiconset\Contents.json      | JSON       |         68 |          0 |          1 |         69 |
+| c:\Users\macha\develop\Kognix\kognix\macos\Runner\Base.lproj\MainMenu.xib                               | XML        |        343 |          0 |          1 |        344 |
+| c:\Users\macha\develop\Kognix\kognix\macos\Runner\MainFlutterWindow.swift                               | Swift      |         12 |          0 |          4 |         16 |
+| c:\Users\macha\develop\Kognix\kognix\pubspec.yaml                                                       | YAML       |         50 |          2 |          7 |         59 |
+| c:\Users\macha\develop\Kognix\kognix\web\index.html                                                     | HTML       |         79 |         23 |         41 |        143 |
+| c:\Users\macha\develop\Kognix\kognix\web\manifest.json                                                  | JSON       |         35 |          0 |          1 |         36 |
+| c:\Users\macha\develop\Kognix\kognix\windows\CMakeLists.txt                                             | CMake      |         89 |          0 |         20 |        109 |
+| c:\Users\macha\develop\Kognix\kognix\windows\flutter\CMakeLists.txt                                     | CMake      |         98 |          0 |         12 |        110 |
+| c:\Users\macha\develop\Kognix\kognix\windows\flutter\generated_plugin_registrant.cc                     | C++        |         18 |          4 |          5 |         27 |
+| c:\Users\macha\develop\Kognix\kognix\windows\flutter\generated_plugin_registrant.h                      | C++        |          5 |          5 |          6 |         16 |
+| c:\Users\macha\develop\Kognix\kognix\windows\flutter\generated_plugins.cmake                            | CMake      |         24 |          0 |          6 |         30 |
+| c:\Users\macha\develop\Kognix\kognix\windows\runner\CMakeLists.txt                                      | CMake      |         34 |          0 |          7 |         41 |
+| c:\Users\macha\develop\Kognix\kognix\windows\runner\flutter_window.cpp                                  | C++        |         49 |          7 |         16 |         72 |
+| c:\Users\macha\develop\Kognix\kognix\windows\runner\flutter_window.h                                    | C++        |         20 |          5 |          9 |         34 |
+| c:\Users\macha\develop\Kognix\kognix\windows\runner\main.cpp                                            | C++        |         30 |          4 |         10 |         44 |
+| c:\Users\macha\develop\Kognix\kognix\windows\runner\resource.h                                          | C++        |          9 |          6 |          2 |         17 |
+| c:\Users\macha\develop\Kognix\kognix\windows\runner\utils.cpp                                           | C++        |         54 |          2 |         10 |         66 |
+| c:\Users\macha\develop\Kognix\kognix\windows\runner\utils.h                                             | C++        |          8 |          6 |          6 |         20 |
+| c:\Users\macha\develop\Kognix\kognix\windows\runner\win32_window.cpp                                    | C++        |        210 |         24 |         55 |        289 |
+| c:\Users\macha\develop\Kognix\kognix\windows\runner\win32_window.h                                      | C++        |         48 |         31 |         24 |        103 |
+| Total                                                                                                   |            |     11,777 |        464 |      1,577 |     13,818 |
++---------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+

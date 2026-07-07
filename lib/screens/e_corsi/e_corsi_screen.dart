@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fl_chart/fl_chart.dart';
-
+import '../../bloc/settings/settings_bloc.dart';
 import '../../bloc/e_corsi/e_corsi_bloc.dart';
 
 class ECorsiScreen extends StatelessWidget {
@@ -15,66 +15,7 @@ class ECorsiScreen extends StatelessWidget {
     Alignment(-0.1, 0.7), Alignment(0.6, 0.8), Alignment(0.9, 0.2),
   ];
 
-  // --- FUNKCE: EXPORT DO KOGNITIVNÍHO PROFILU ---
-  Future<void> _saveTestToProfile(double newScore) async {
-    final prefs = await SharedPreferences.getInstance();
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-    List<String> dailyHistory = prefs.getStringList('ecorsi_daily_history') ?? [];
-    Map<String, double> dailyMaxes = {};
-
-    for (var entry in dailyHistory) {
-      final parts = entry.split('|');
-      if (parts.length == 2) {
-        dailyMaxes[parts[0]] = double.tryParse(parts[1]) ?? 0.0;
-      }
-    }
-
-    if (dailyMaxes.containsKey(today)) {
-      if (newScore > dailyMaxes[today]!) {
-        dailyMaxes[today] = newScore;
-      }
-    } else {
-      dailyMaxes[today] = newScore;
-    }
-
-    var sortedKeys = dailyMaxes.keys.toList()..sort();
-    if (sortedKeys.length > 10) {
-      sortedKeys = sortedKeys.sublist(sortedKeys.length - 10);
-    }
-
-    List<String> newHistoryToSave = [];
-    List<double> valuesForMedian = [];
-
-    for (var key in sortedKeys) {
-      newHistoryToSave.add('$key|${dailyMaxes[key]}');
-      valuesForMedian.add(dailyMaxes[key]!);
-    }
-
-    await prefs.setStringList('ecorsi_daily_history', newHistoryToSave);
-
-    valuesForMedian.sort();
-    double median = 0.0;
-    int length = valuesForMedian.length;
-    if (length > 0) {
-      if (length % 2 == 1) {
-        median = valuesForMedian[length ~/ 2];
-      } else {
-        median = (valuesForMedian[(length ~/ 2) - 1] + valuesForMedian[length ~/ 2]) / 2;
-      }
-    }
-
-    await prefs.setDouble('metric_visuospatial', median);
-    await prefs.setInt('validity_visuospatial', length);
-  }
-
-  Future<void> _saveTestToHistory(String historyKey, double newResult) async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String> history = prefs.getStringList(historyKey) ?? [];
-    history.add(newResult.toString());
-    if (history.length > 50) history.removeAt(0); 
-    await prefs.setStringList(historyKey, history);
-  }
 
   Future<bool> _showInterruptDialog(BuildContext context, bool isDark) async {
     return await showDialog<bool>(
@@ -158,12 +99,10 @@ class ECorsiScreen extends StatelessWidget {
         listenWhen: (previous, current) {
           return previous.phase != ECorsiPhase.result && current.phase == ECorsiPhase.result;
         },
-        listener: (context, state) async {
-          await _saveTestToHistory('history_ecorsi', state.currentSpan.toDouble());
-          if (state.mode == ECorsiMode.forward) {
-            await _saveTestToProfile(state.currentSpan.toDouble());
-          }
+                listener: (context, state) {
+          // Ukládání delegováno exkluzivně do BLoCu
         },
+
         builder: (context, state) {
           return PopScope(
             canPop: false,
@@ -269,19 +208,28 @@ class ECorsiScreen extends StatelessWidget {
               boxShadow: isDark ? [] : [BoxShadow(color: accentColor.withAlpha(15), blurRadius: 20, offset: const Offset(0, 10))],
             ),
             child: Stack(
-              children: List.generate(9, (index) {
+                            children: List.generate(9, (index) {
                 bool isActive = state.activeBlockIndex == index;
                 bool isTapped = state.userInputs.contains(index) && state.phase == ECorsiPhase.input;
                 
                 Color blockColor = isDark ? Colors.white.withAlpha(10) : accentColor.withAlpha(10);
                 Color glowColor = Colors.transparent;
                 
-                if (isActive) { blockColor = accentColor; glowColor = accentColor; }
+                // ZMĚNA: Pokud je aktivní blok v režimu zadávání (input), vybarvíme ho červeně jako chybu
+                if (isActive) { 
+                  if (state.phase == ECorsiPhase.input) {
+                    blockColor = Colors.redAccent; 
+                    glowColor = Colors.redAccent;
+                  } else {
+                    blockColor = accentColor; 
+                    glowColor = accentColor;
+                  }
+                }
                 if (isTapped) { blockColor = const Color(0xFF00E676); glowColor = const Color(0xFF00E676); }
 
                 return Align(
                   alignment: _blockPositions[index],
-                  child: GestureDetector(
+                    child: GestureDetector(
                     onTap: () => context.read<ECorsiBloc>().add(BlockTapped(index)),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
@@ -373,20 +321,33 @@ class ECorsiScreen extends StatelessWidget {
     );
   }
 
-    Widget _buildPerformanceChart(List<ECorsiHistoryItem> history, String title, bool isDark, Color accent) {
+      Widget _buildPerformanceChart(List<ECorsiHistoryItem> history, String title, bool isDark, Color accent, bool showGamifiedValues) {
     if (history.isEmpty) return const SizedBox.shrink();
 
-    // Zobrazujeme VŠECHNA data (zrušeno omezení na posledních 10)
     final displayData = history;
     
-    double minY = displayData.map((e) => e.maxSpan.toDouble()).reduce((a, b) => a < b ? a : b);
-    double maxY = displayData.map((e) => e.maxSpan.toDouble()).reduce((a, b) => a > b ? a : b);
+    // ZMĚNA: Přepínání Y hodnoty (Surová kapacita vs KCI)
+    List<double> yValues = displayData.map((e) {
+      if (showGamifiedValues) {
+        return ECorsiBloc.calculateKci(e.maxSpan.toDouble(), e.mode).toDouble();
+      } else {
+        return e.maxSpan.toDouble();
+      }
+    }).toList();
+
+    double minY = yValues.reduce((a, b) => a < b ? a : b);
+    double maxY = yValues.reduce((a, b) => a > b ? a : b);
     
-    minY = (minY - 1).clamp(0, double.infinity);
-    maxY = maxY + 1;
+    if (showGamifiedValues) {
+      minY = (minY - 10).clamp(0, double.infinity);
+      maxY = maxY + 10;
+    } else {
+      minY = (minY - 1).clamp(0, double.infinity);
+      maxY = maxY + 1;
+    }
 
     final spots = displayData.asMap().entries.map((e) {
-      return FlSpot(e.key.toDouble(), e.value.maxSpan.toDouble());
+      return FlSpot(e.key.toDouble(), yValues[e.key]);
     }).toList();
 
     return Column(
@@ -408,13 +369,10 @@ class ECorsiScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: isDark ? Colors.white12 : accent.withAlpha(20)),
           ),
-          // Obalíme do ClipRRect, aby nám širší graf nepřetékal přes oblé rohy rámečku
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                // Do 100 položek držíme šířku grafu pevně podle obrazovky (graf se zhušťuje).
-                // Nad 100 položek šířku dynamicky zvětšujeme podle počtu prvků.
                 double chartWidth = constraints.maxWidth;
                 if (displayData.length > 100) {
                   chartWidth = (constraints.maxWidth / 100) * displayData.length;
@@ -423,7 +381,6 @@ class ECorsiScreen extends StatelessWidget {
                 return SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(),
-                  // Automatické zarovnání na pravý okraj (k nejnovějším datům), pokud rolujeme
                   reverse: displayData.length > 100, 
                   child: Container(
                     width: chartWidth,
@@ -433,7 +390,7 @@ class ECorsiScreen extends StatelessWidget {
                         gridData: FlGridData(
                           show: true, 
                           drawVerticalLine: false,
-                          horizontalInterval: 1,
+                          horizontalInterval: showGamifiedValues ? 20 : 1, // KCI má širší interval
                           getDrawingHorizontalLine: (value) => FlLine(color: isDark ? Colors.white12 : Colors.black12, strokeWidth: 1),
                         ),
                         titlesData: FlTitlesData(
@@ -444,7 +401,7 @@ class ECorsiScreen extends StatelessWidget {
                           leftTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
-                              interval: 1,
+                              interval: showGamifiedValues ? 50 : 1,
                               reservedSize: 30,
                               getTitlesWidget: (value, meta) {
                                 return Text(value.toInt().toString(), style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontSize: 12));
@@ -460,17 +417,12 @@ class ECorsiScreen extends StatelessWidget {
                         lineBarsData: [
                           LineChartBarData(
                             spots: spots,
-                            isCurved: false, // NEZAOBLENÝ spojnicový graf
+                            isCurved: false, 
                             color: accent,
-                            barWidth: 2.5, // Mírně zúženo, aby se linky do 100 dat neslévaly
+                            barWidth: 2.5, 
                             isStrokeCapRound: true,
-                            dotData: const FlDotData(
-                              show: false, // BEZ BODŮ
-                            ),
-                            belowBarData: BarAreaData(
-                              show: true,
-                              color: accent.withAlpha(20),
-                            ),
+                            dotData: const FlDotData(show: false),
+                            belowBarData: BarAreaData(show: true, color: accent.withAlpha(20)),
                           ),
                         ],
                       ),
@@ -486,101 +438,128 @@ class ECorsiScreen extends StatelessWidget {
   }
 
 
-  Widget _buildResult(BuildContext context, ECorsiState state, bool isDark) {
+
+    Widget _buildResult(BuildContext context, ECorsiState state, bool isDark) {
     final Color baseAccent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
-    
-    // Filtrování historie zvlášť pro dopředný a inverzní režim
     final forwardHistory = state.history.where((e) => e.mode == ECorsiMode.forward).toList();
     final reverseHistory = state.history.where((e) => e.mode == ECorsiMode.reverse).toList();
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const SizedBox(height: 40),
-          Icon(Icons.hub_rounded, size: 80, color: baseAccent),
-          const SizedBox(height: 30),
-          Text('global_training_complete'.tr(), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 3, color: isDark ? Colors.white54 : Colors.black54)),
-          const SizedBox(height: 10),
-          Text('ecorsi_res_capacity'.tr(args: [state.currentSpan.toString()]), style: TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B))),
-          Text('ecorsi_res_score'.tr(args: [state.score.toString()]), style: TextStyle(fontSize: 18, color: baseAccent, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 40),
-          
-          // --- ROZDĚLENÉ GRAFY VE VÝSLEDCÍCH ---
-          if (forwardHistory.isNotEmpty || reverseHistory.isNotEmpty) ...[
-            Align(
-              alignment: Alignment.centerLeft, 
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 12.0),
-                child: Text('global_progress'.tr(), style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: isDark ? Colors.white : Colors.black)),
-              )
-            ),
-            _buildPerformanceChart(forwardHistory, 'ecorsi_mode_forward'.tr(), isDark, const Color(0xFF00E5FF)),
-            _buildPerformanceChart(reverseHistory, 'ecorsi_mode_reverse'.tr(), isDark, const Color(0xFFFF007F)), 
-          ],
-          
-          const SizedBox(height: 30),
-          _menuBtn(context, 'global_btn_to_menu'.tr(), () => context.read<ECorsiBloc>().add(ResetECorsi()), isDark, isPrimary: true),
-          const SizedBox(height: 40),
-        ],
-      ),
+    return BlocBuilder<SettingsBloc, SettingsState>(
+      builder: (context, settingsState) {
+        final showGamified = settingsState.showGamifiedValues;
+
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 40),
+              Icon(Icons.hub_rounded, size: 80, color: baseAccent),
+              const SizedBox(height: 30),
+              Text('global_training_complete'.tr(), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 3, color: isDark ? Colors.white54 : Colors.black54)),
+              const SizedBox(height: 10),
+              Text('ecorsi_res_capacity'.tr(args: [state.currentSpan.toString()]), style: TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B))),
+              
+              if (showGamified)
+                Text('global_score_kci'.tr(args: [ECorsiBloc.calculateKci(state.currentSpan.toDouble(), state.mode).toString()]), 
+                  style: TextStyle(fontSize: 18, color: baseAccent, fontWeight: FontWeight.bold))
+              else
+                Text('ecorsi_res_score'.tr(args: [state.score.toString()]), 
+                  style: TextStyle(fontSize: 18, color: baseAccent, fontWeight: FontWeight.bold)),
+              
+              const SizedBox(height: 40),
+              
+              if (forwardHistory.isNotEmpty || reverseHistory.isNotEmpty) ...[
+                Align(
+                  alignment: Alignment.centerLeft, 
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: Text('global_progress'.tr(), style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: isDark ? Colors.white : Colors.black)),
+                  )
+                ),
+                _buildPerformanceChart(forwardHistory, 'ecorsi_mode_forward'.tr(), isDark, const Color(0xFF00E5FF), showGamified),
+                _buildPerformanceChart(reverseHistory, 'ecorsi_mode_reverse'.tr(), isDark, const Color(0xFFFF007F), showGamified), 
+              ],
+              
+              const SizedBox(height: 30),
+              _menuBtn(context, 'global_btn_to_menu'.tr(), () => context.read<ECorsiBloc>().add(ResetECorsi()), isDark, isPrimary: true),
+              const SizedBox(height: 40),
+            ],
+          ),
+        );
+      }
     );
   }
 
-  Widget _buildHistory(BuildContext context, ECorsiState state, bool isDark) {
+
+    Widget _buildHistory(BuildContext context, ECorsiState state, bool isDark) {
     final Color baseAccent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
-    
     final forwardHistory = state.history.where((e) => e.mode == ECorsiMode.forward).toList();
     final reverseHistory = state.history.where((e) => e.mode == ECorsiMode.reverse).toList();
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        children: [
-          const SizedBox(height: 20),
-          
-          // --- ROZDĚLENÉ GRAFY V HISTORII ---
-          if (state.history.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  _buildPerformanceChart(forwardHistory, 'ecorsi_mode_forward'.tr(), isDark, const Color(0xFF00E5FF)),
-                  _buildPerformanceChart(reverseHistory, 'ecorsi_mode_reverse'.tr(), isDark, const Color(0xFFFF007F)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-          ],
+    return BlocBuilder<SettingsBloc, SettingsState>(
+      builder: (context, settingsState) {
+        final showGamified = settingsState.showGamifiedValues;
 
-          if (state.history.isEmpty)
-             Center(child: Text("global_no_data".tr(), style: TextStyle(color: isDark ? Colors.white54 : Colors.black54))),
-          
-          ...state.history.reversed.map((item) => Container(
-            margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white.withAlpha(10) : baseAccent.withAlpha(10), 
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: isDark ? Colors.white12 : baseAccent.withAlpha(20))
-            ),
-            child: ListTile(
-              leading: Icon(
-                item.mode == ECorsiMode.forward ? Icons.arrow_forward_rounded : Icons.keyboard_double_arrow_left_rounded, 
-                color: item.mode == ECorsiMode.forward ? const Color(0xFF00E5FF) : const Color(0xFFFF007F)
-              ),
-              title: Text('ecorsi_hist_item'.tr(args: [item.maxSpan.toString(), item.score.toString()]), style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1E293B))),
-              subtitle: Text('${item.date.day}.${item.date.month}. ${item.date.hour}:${item.date.minute.toString().padLeft(2,'0')}', style: TextStyle(color: isDark ? Colors.white54 : Colors.black54)),
-            ),
-          )),
-          const SizedBox(height: 40),
-          _menuBtn(context, 'global_btn_back'.tr(), () => context.read<ECorsiBloc>().add(ResetECorsi()), isDark),
-          const SizedBox(height: 40),
-        ],
-      ),
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              
+              if (state.history.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    children: [
+                      _buildPerformanceChart(forwardHistory, 'ecorsi_mode_forward'.tr(), isDark, const Color(0xFF00E5FF), showGamified),
+                      _buildPerformanceChart(reverseHistory, 'ecorsi_mode_reverse'.tr(), isDark, const Color(0xFFFF007F), showGamified),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+
+              if (state.history.isEmpty)
+                 Center(child: Text("global_no_data".tr(), style: TextStyle(color: isDark ? Colors.white54 : Colors.black54))),
+              
+              ...state.history.reversed.map((item) {
+                String subScore;
+                if (showGamified) {
+                  int itemKci = ECorsiBloc.calculateKci(item.maxSpan.toDouble(), item.mode);
+                  subScore = '${item.score} | KCI: $itemKci';
+                } else {
+                  subScore = item.score.toString();
+                }
+
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white.withAlpha(10) : baseAccent.withAlpha(10), 
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: isDark ? Colors.white12 : baseAccent.withAlpha(20))
+                  ),
+                  child: ListTile(
+                    leading: Icon(
+                      item.mode == ECorsiMode.forward ? Icons.arrow_forward_rounded : Icons.keyboard_double_arrow_left_rounded, 
+                      color: item.mode == ECorsiMode.forward ? const Color(0xFF00E5FF) : const Color(0xFFFF007F)
+                    ),
+                    title: Text('ecorsi_hist_item'.tr(args: [item.maxSpan.toString(), subScore]), style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1E293B))),
+                    subtitle: Text('${item.date.day}.${item.date.month}. ${item.date.hour}:${item.date.minute.toString().padLeft(2,'0')}', style: TextStyle(color: isDark ? Colors.white54 : Colors.black54)),
+                  ),
+                );
+              }),
+              const SizedBox(height: 40),
+              _menuBtn(context, 'global_btn_back'.tr(), () => context.read<ECorsiBloc>().add(ResetECorsi()), isDark),
+              const SizedBox(height: 40),
+            ],
+          ),
+        );
+      }
     );
   }
+
 
   // --- ZDE JE IMPLEMETOVÁNA ÚPRAVA PODLE DS: Přidán parametr isDanger ---
   Widget _menuBtn(BuildContext context, String label, VoidCallback onTap, bool isDark, {IconData? icon, bool isPrimary = false, bool isSecondary = false, bool isDanger = false}) {

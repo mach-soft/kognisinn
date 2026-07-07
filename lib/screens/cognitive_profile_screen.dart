@@ -5,6 +5,12 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'main_menu_screen.dart'; 
+import '../../bloc/memory_palace/memory_palace_bloc.dart';
+import '../../bloc/stroop/stroop_bloc.dart'; 
+import '../../bloc/stroop/stroop_state.dart'; 
+import '../../bloc/e_corsi/e_corsi_bloc.dart';
+
+
 
 class CognitiveProfileScreen extends StatefulWidget {
   const CognitiveProfileScreen({super.key});
@@ -16,40 +22,35 @@ class CognitiveProfileScreen extends StatefulWidget {
 class _CognitiveProfileScreenState extends State<CognitiveProfileScreen> {
   bool _isLoading = true;
 
-  // Hodnoty pro pavučinový graf
   double _scoreWorkingMemory = 0;   
   double _scoreVisuospatial = 0;    
   double _scoreExecutive = 0;       
   double _scoreAssociative = 0;     
   double _scoreAttention = 0;       
 
-  // Hodnoty pro validitu vzorku (0 - 10)
   int _valWorkingMemory = 0;
   int _valVisuospatial = 0;
   int _valExecutive = 0;
   int _valAssociative = 0;
   int _valAttention = 0;
 
-  // Globální nastavení
   int _medianWindowSize = 10; 
   double _chartScale = 100.0;
   
-  // Psychometrická normalizace na škálu 0 - 300 (100 = baseline)
+  // Vzorec pro DNB, Digit, Corsi
   double _calcKci(double val, double worst, double baseline, double trained, {bool reverse = false}) {
-    if (reverse) { // Pro časové úlohy (méně je lépe)
+    if (val.isNaN || val.isInfinite) val = baseline;
+
+    if (reverse) { 
       if (val >= baseline) {
-        // Horší nebo rovno průměru (čas je vyšší) -> škála 0 až 100
         return 100.0 - (((val - baseline) / (worst - baseline)) * 100.0).clamp(0.0, 100.0);
       } else {
-        // Lepší než průměr (čas je nižší) -> škála 100 až 300 (prostor 200 bodů)
         return 100.0 + (((baseline - val) / (baseline - trained)) * 200.0).clamp(0.0, 200.0);
       }
-    } else { // Pro kapacitní úlohy (více je lépe)
+    } else { 
       if (val <= baseline) {
-        // Horší nebo rovno průměru -> škála 0 až 100
         return (((val - worst) / (baseline - worst)) * 100.0).clamp(0.0, 100.0);
       } else {
-        // Lepší než průměr -> škála 100 až 300 (prostor 200 bodů)
         return 100.0 + (((val - baseline) / (trained - baseline)) * 200.0).clamp(0.0, 200.0);
       }
     }
@@ -64,63 +65,81 @@ class _CognitiveProfileScreenState extends State<CognitiveProfileScreen> {
   Future<void> _refreshData() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
-    await _loadAndNormalizeData();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _loadAndNormalizeData();
-  }
-
-  double _getRollingMedian(SharedPreferences prefs, String historyKey, String calibKey, double defaultVal, {bool isInt = false}) {
-    List<String>? history = prefs.getStringList(historyKey);
-    List<double> values = [];
-
-    if (history != null && history.isNotEmpty) {
-      Iterable<String> recent = history.length > _medianWindowSize ? history.skip(history.length - _medianWindowSize) : history;
-      values = recent.map((e) => double.tryParse(e) ?? defaultVal).toList();
-    } else {
-      if (isInt) {
-        int? calib = prefs.getInt(calibKey);
-        if (calib != null) values.add(calib.toDouble());
-      } else {
-        double? calib = prefs.getDouble(calibKey);
-        if (calib != null) values.add(calib);
+    
+    try {
+      await _loadAndNormalizeData();
+    } catch (e) {
+      debugPrint("Chyba parsování profilu: $e");
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
-
-    if (values.isEmpty) return defaultVal;
-
-    values.sort();
-    int middle = values.length ~/ 2;
-    return values.length % 2 == 1 ? values[middle] : (values[middle - 1] + values[middle]) / 2.0;
   }
 
-  Future<void> _loadAndNormalizeData() async {
+  
+
+    Future<void> _loadAndNormalizeData() async {
     final prefs = await SharedPreferences.getInstance();
     _medianWindowSize = 10; 
 
-    // Lokální helper pro DNB
+    // --- 1. LOKÁLNÍ FUNKCE PRO ZÍSKÁNÍ DAT Z JEDNOTLIVÝCH MODULŮ ---
+
     double getDnbMedian() {
       List<String>? dnbHistoryStr = prefs.getStringList('dnb_history');
-      double fallback = (prefs.getDouble('calib_dnb') ?? 0.5) * 2.0;
+      double? rawCalib = prefs.getDouble('calib_dnb');
+      double fallback = (rawCalib != null && !rawCalib.isNaN && rawCalib > 10.0) ? rawCalib : 100.0; 
       
       if (dnbHistoryStr == null || dnbHistoryStr.isEmpty) return fallback;
       
-      Iterable<String> recent = dnbHistoryStr.length > _medianWindowSize ? dnbHistoryStr.skip(dnbHistoryStr.length - _medianWindowSize) : dnbHistoryStr;
+      Iterable<String> recent = dnbHistoryStr.length > _medianWindowSize 
+          ? dnbHistoryStr.skip(dnbHistoryStr.length - _medianWindowSize) 
+          : dnbHistoryStr;
       List<double> scores = [];
       
       for (String s in recent) {
         final parts = s.split('|');
-        if (parts.length >= 6) {
-           int nLevel = int.tryParse(parts[1]) ?? 2;
-           int score = int.tryParse(parts[2]) ?? 0;
-           int speed = int.tryParse(parts[4]) ?? 2500;
-           bool isVar = parts[5] == 'true';
+        if (parts.length >= 3) {
+           DateTime date;
+           try { 
+             date = DateTime.parse(parts[0]); 
+           } catch (e) { 
+             date = DateTime(2020); 
+           }
            
-           double speedMultiplier = isVar ? 2.0 : 2500 / speed;
-           scores.add((score / 40.0) * nLevel * speedMultiplier);
+           int nLevel = int.tryParse(parts[1]) ?? 2;
+           double rawScore = double.tryParse(parts[2]) ?? 0.0;
+           int speedMs = parts.length > 4 ? (int.tryParse(parts[4]) ?? 2500) : 2500;
+           bool isVar = parts.length > 5 ? parts[5] == 'true' : false;
+           int modalities = parts.length > 6 ? (int.tryParse(parts[6]) ?? 2) : 2;
+           
+           double sSuccess;
+           if (date.isBefore(DateTime(2026, 7, 7))) {
+             double maxPoss = 20.0 * modalities;
+             sSuccess = maxPoss > 0 ? (rawScore / maxPoss) : 0.0;
+           } else {
+             sSuccess = rawScore / 100.0;
+           }
+           sSuccess = sSuccess.clamp(0.0, 1.0);
+           
+           double fT = 1.0;
+           double sigmaT = 0.0;
+           if (isVar) {
+             fT = 1.0987;
+             sigmaT = 0.2828;
+           } else {
+             double t = speedMs / 1000.0;
+             if (t <= 0.1) t = 2.5; 
+             fT = math.sqrt(2.5 / t);
+           }
+           
+           double modalityFactor = modalities / 2.0;
+           double nEff = nLevel * modalityFactor * fT * (1 + 0.5 * sigmaT) * math.pow((sSuccess / 0.8), 2);
+           double qScore = 75.0 + (12.5 * nEff);
+           
+           if (!qScore.isNaN && !qScore.isInfinite) {
+             scores.add(qScore);
+           }
         }
       }
       
@@ -130,22 +149,30 @@ class _CognitiveProfileScreenState extends State<CognitiveProfileScreen> {
       return scores.length % 2 == 1 ? scores[mid] : (scores[mid - 1] + scores[mid]) / 2.0;
     }
 
-    // Lokální helper pro Digit Span
     double getDigitSpanMedian() {
       List<String>? dsHistoryStr = prefs.getStringList('history_digit_span');
       double fallback = (prefs.getInt('calib_digit_span') ?? 4).toDouble();
       
       if (dsHistoryStr == null || dsHistoryStr.isEmpty) return fallback;
       
-      Iterable<String> recent = dsHistoryStr.length > _medianWindowSize ? dsHistoryStr.skip(dsHistoryStr.length - _medianWindowSize) : dsHistoryStr;
+      Iterable<String> recent = dsHistoryStr.length > _medianWindowSize 
+          ? dsHistoryStr.skip(dsHistoryStr.length - _medianWindowSize) 
+          : dsHistoryStr;
       List<double> scores = [];
       
       for (String s in recent) {
+        double? parsed;
         if (s.contains('|')) {
            final parts = s.split('|');
-           scores.add((int.tryParse(parts[1]) ?? 4).toDouble());
+           if (parts.length > 1) {
+             parsed = int.tryParse(parts[1])?.toDouble();
+           }
         } else {
-           scores.add((double.tryParse(s) ?? 4.0)); 
+           parsed = double.tryParse(s);
+        }
+        
+        if (parsed != null && !parsed.isNaN && !parsed.isInfinite) {
+           scores.add(parsed);
         }
       }
       
@@ -155,44 +182,126 @@ class _CognitiveProfileScreenState extends State<CognitiveProfileScreen> {
       return scores.length % 2 == 1 ? scores[mid] : (scores[mid - 1] + scores[mid]) / 2.0;
     }
 
-    // Načtení dat
-    final double stroopTime = _getRollingMedian(prefs, 'history_stroop', 'calib_stroop', 1200.0);
+        double getPalaceScore() {
+      List<String>? history = prefs.getStringList('history_palace');
+      if (history != null && history.isNotEmpty) {
+        Iterable<String> recent = history.length > _medianWindowSize ? history.skip(history.length - _medianWindowSize) : history;
+        List<double> scores = [];
+        for (String e in recent) {
+          double? val = double.tryParse(e);
+          if (val != null && !val.isNaN && !val.isInfinite) {
+            // ZÁCHRANNÁ SÍŤ: Pokud je hodnota <= 20, jde o starou surovou úroveň (např. level 3)
+            if (val <= 20.0) {
+              scores.add(MemoryPalaceBloc.calculateKci(val.toInt()).toDouble());
+            } else {
+              scores.add(val); // Jinak je to už hotové KCI
+            }
+          }
+        }
+        if (scores.isNotEmpty) {
+          scores.sort();
+          int mid = scores.length ~/ 2;
+          return scores.length % 2 == 1 ? scores[mid] : (scores[mid - 1] + scores[mid]) / 2.0;
+        }
+      }
+      
+      // ZCELA BEZPEČNÉ NAČTENÍ KALIBRACE
+      final calibRaw = int.tryParse(prefs.get('calib_palace')?.toString() ?? '') ?? 2;
+      return MemoryPalaceBloc.calculateKci(calibRaw).toDouble();
+    }
+
+    double getStroopScore() {
+      List<String>? history = prefs.getStringList('history_stroop');
+      if (history != null && history.isNotEmpty) {
+        Iterable<String> recent = history.length > _medianWindowSize ? history.skip(history.length - _medianWindowSize) : history;
+        List<double> scores = [];
+        for (String e in recent) {
+          double? val = double.tryParse(e);
+          if (val != null && !val.isNaN && !val.isInfinite) {
+             // ZÁCHRANNÁ SÍŤ: Pokud je hodnota <= 10.0, jde o starý surový čas v sekundách (např. 0.72)
+             if (val <= 10.0) {
+                scores.add(StroopBloc.calculateKci(val * 1000, StroopGameType.standard).toDouble());
+             } else {
+                scores.add(val); // Jinak je to už hotové KCI
+             }
+          }
+        }
+        if (scores.isNotEmpty) {
+          scores.sort();
+          int mid = scores.length ~/ 2;
+          return scores.length % 2 == 1 ? scores[mid] : (scores[mid - 1] + scores[mid]) / 2.0;
+        }
+      }
+      
+      // ZCELA BEZPEČNÉ NAČTENÍ KALIBRACE (vč. ochrany proti starému uložení v sekundách)
+      double calibRaw = double.tryParse(prefs.get('calib_stroop')?.toString() ?? '') ?? 1200.0;
+      if (calibRaw <= 10.0) calibRaw *= 1000; 
+      return StroopBloc.calculateKci(calibRaw, StroopGameType.standard).toDouble();
+    }
+
+    double getCorsiScore() {
+      List<String>? history = prefs.getStringList('history_ecorsi');
+      
+      if (history != null && history.isNotEmpty) {
+        Iterable<String> recent = history.length > _medianWindowSize ? history.skip(history.length - _medianWindowSize) : history;
+        List<double> scores = [];
+        for (String e in recent) {
+          double? val = double.tryParse(e);
+          if (val != null && !val.isNaN && !val.isInfinite) {
+             // ZÁCHRANNÁ SÍŤ: Pokud je kapacita <= 20, jde o starý surový počet bloků (např. 8)
+             if (val <= 20.0) {
+                scores.add(ECorsiBloc.calculateKci(val, ECorsiMode.forward).toDouble());
+             } else {
+                scores.add(val); // Jinak je v databázi už hotové KCI
+             }
+          }
+        }
+        if (scores.isNotEmpty) {
+          scores.sort();
+          int mid = scores.length ~/ 2;
+          return scores.length % 2 == 1 ? scores[mid] : (scores[mid - 1] + scores[mid]) / 2.0;
+        }
+      }
+      
+      // ZCELA BEZPEČNÉ NAČTENÍ KALIBRACE
+      final calibRaw = double.tryParse(prefs.get('calib_ecorsi')?.toString() ?? '') ?? 3.0;
+      return ECorsiBloc.calculateKci(calibRaw, ECorsiMode.forward).toDouble();
+    }
+
+
+    
+    // --- 2. ZÍSKÁNÍ A OŠETŘENÍ VÝSLEDNÝCH BÁZÍ PRO GRAF ---
+
     final double digitSpan = getDigitSpanMedian(); 
-    final double eCorsiSpan = _getRollingMedian(prefs, 'history_ecorsi', 'calib_ecorsi', 3.0, isInt: true);
-    final double palaceScore = _getRollingMedian(prefs, 'history_palace', 'calib_palace', 2.0, isInt: true);
     final double dnbRawScore = getDnbMedian(); 
 
-    // --- 1. DETEKCE ZDROJE DAT (Kalibrace vs. Trénink) ---
-    bool isStroopCalib = (prefs.getStringList('history_stroop') ?? []).isEmpty;
     bool isDigitCalib = (prefs.getStringList('history_digit_span') ?? []).isEmpty;
     bool isCorsiCalib = (prefs.getStringList('history_ecorsi') ?? []).isEmpty;
-    bool isPalaceCalib = (prefs.getStringList('history_palace') ?? []).isEmpty;
     bool isDnbCalib = (prefs.getStringList('dnb_history') ?? []).isEmpty;
+    bool isStroopCalib = (prefs.getStringList('history_stroop') ?? []).isEmpty;
+    bool isPalaceCalib = (prefs.getStringList('history_palace') ?? []).isEmpty;
 
-    // --- 2. ODDĚLENÁ NORMALIZACE (Škála 0 - 300) ---
-    // Parametry _calcKci: (Aktuální_Hodnota, Absolutní_Minimum, Výchozí_Průměr_Populace, Strop_Trénovaného_Jedince)
-    
-    // Stroop: Průměr = 1000 ms, Minimum = 2000 ms, Strop = 600 ms
-    double baseStroop = _calcKci(stroopTime, 2000.0, 1000.0, 600.0, reverse: true);
-    if (isStroopCalib) baseStroop = baseStroop.clamp(0.0, 120.0);
-
-    // Digit Span: Průměr = 5.5, Minimum = 3.0, Strop = 9.0
+    // Starý vzorec KCI se volá už jen u Digit Spanu
     double baseDigit = _calcKci(digitSpan, 3.0, 5.5, 9.0);
     if (isDigitCalib) baseDigit = baseDigit.clamp(0.0, 120.0);
 
-    // eCorsi: Průměr = 4.5, Minimum = 2.0, Strop = 8.0
-    double baseCorsi = _calcKci(eCorsiSpan, 2.0, 4.5, 8.0);
+    // KCI hodnoty dodané přes Single Source of Truth
+    double baseCorsi = getCorsiScore();
     if (isCorsiCalib) baseCorsi = baseCorsi.clamp(0.0, 120.0);
 
-    // Memory Palace: Průměr = 2.5, Minimum = 0.0, Strop = 10.0
-    double basePalace = _calcKci(palaceScore, 0.0, 2.5, 10.0);
+    double basePalace = getPalaceScore();
     if (isPalaceCalib) basePalace = basePalace.clamp(0.0, 120.0);
 
-    // Dual N-Back: Průměr = úroveň 2.0, Minimum = 1.0, Strop = 4.0
-    double baseDnb = _calcKci(dnbRawScore, 1.0, 2.0, 4.0);
+    double baseStroop = getStroopScore();
+    if (isStroopCalib) baseStroop = baseStroop.clamp(0.0, 120.0);
+
+    double safeDnb = dnbRawScore;
+    if (safeDnb.isNaN || safeDnb.isInfinite) safeDnb = 100.0;
+    double baseDnb = safeDnb.clamp(0.0, 300.0);
     if (isDnbCalib) baseDnb = baseDnb.clamp(0.0, 120.0);
 
-    // Načtení validity (počty odehraných dní pro danou doménu)
+    // --- 3. PLATNOST (VALIDITA) DAT ---
+
     int vDnb = prefs.getInt('validity_working_memory') ?? (prefs.getStringList('dnb_daily_history')?.length ?? 0);
     int vStroop = prefs.getInt('validity_inhibition') ?? (prefs.getStringList('stroop_daily_history')?.length ?? 0);
     int vDigit = prefs.getInt('validity_digit_span') ?? (prefs.getStringList('ds_daily_history')?.length ?? 0);
@@ -201,50 +310,39 @@ class _CognitiveProfileScreenState extends State<CognitiveProfileScreen> {
 
     if (!mounted) return;
 
+    // --- 4. APLIKACE DO UI (SETSTATE) ---
+
     setState(() {
-      // Skórování KCI profilu (sloučení subtestů s váhami)
       _scoreWorkingMemory = (baseDnb * 0.60) + (baseDigit * 0.40);
       _scoreVisuospatial = (baseCorsi * 0.80) + (baseDnb * 0.20);
       _scoreExecutive = (baseStroop * 0.70) + (baseDnb * 0.30);
-      _scoreAssociative = basePalace;
+      _scoreAssociative = basePalace; 
       _scoreAttention = (baseStroop * 0.50) + (baseDnb * 0.50);
 
-      // Dynamické měřítko pavučinového grafu
       double maxScore = [_scoreWorkingMemory, _scoreVisuospatial, _scoreExecutive, _scoreAssociative, _scoreAttention].reduce(math.max);
+      if (maxScore.isNaN || maxScore.isInfinite) maxScore = 100.0;
       _chartScale = math.max(100.0, ((maxScore / 10).ceil() * 10).toDouble());
 
-      // Zápis validity pro zelené štítky
       _valWorkingMemory = math.min(vDnb, vDigit).clamp(0, 10);
       _valVisuospatial = math.min(vCorsi, vDnb).clamp(0, 10);
       _valExecutive = math.min(vStroop, vDnb).clamp(0, 10);
       _valAssociative = vPalace.clamp(0, 10);
       _valAttention = math.min(vStroop, vDnb).clamp(0, 10);
-
-      _isLoading = false;
     });
   }
 
+
   Future<void> _resetCalibration() async {
     final prefs = await SharedPreferences.getInstance();
-    
     final keys = prefs.getKeys();
     for (String key in keys) {
-      if (key.startsWith('history_') || 
-          key.endsWith('_daily_history') || 
-          key.startsWith('validity_') || 
-          key.startsWith('calib_') || 
-          key == 'dnb_history') {
+      if (key.startsWith('history_') || key.endsWith('_daily_history') || key.startsWith('validity_') || key.startsWith('calib_') || key == 'dnb_history') {
         await prefs.remove(key);
       }
     }
-
     await prefs.setBool('global_is_calibrated', false);
-    
     if (mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const MainMenuScreen()), 
-        (Route<dynamic> route) => false
-      );
+      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (context) => const MainMenuScreen()), (Route<dynamic> route) => false);
     }
   }
 
@@ -286,8 +384,6 @@ class _CognitiveProfileScreenState extends State<CognitiveProfileScreen> {
                             const SizedBox(height: 40),
                             _buildStatRows(context, isDark, accent),
                             const SizedBox(height: 30),
-                            
-                            // Samostatné tlačítko pro reset profilu uprostřed
                             Center(
                               child: OutlinedButton.icon(
                                 onPressed: _resetCalibration,
@@ -301,7 +397,6 @@ class _CognitiveProfileScreenState extends State<CognitiveProfileScreen> {
                                 ),
                               ),
                             ),
-                            
                             const SizedBox(height: 40),
                           ],
                         ),

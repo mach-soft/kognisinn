@@ -50,6 +50,9 @@ class DigitSpanState extends Equatable {
   final int consecutiveFailures;
   final int failsInCurrentSpan; 
   
+  // Sledování maxima pro aktuální relaci (pro uložení KCI a historie na konci)
+  final int maxSpanInCurrentSession;
+  
   final bool isEmphaticMode;
   final bool isGamificationEnabled;
   
@@ -72,6 +75,7 @@ class DigitSpanState extends Equatable {
     this.consecutiveSuccesses = 0,
     this.consecutiveFailures = 0,
     this.failsInCurrentSpan = 0,
+    this.maxSpanInCurrentSession = 0,
     this.isEmphaticMode = false,
     this.isGamificationEnabled = true,
     this.soundSetting = SoundSetting.numbersAndFeedback,
@@ -93,6 +97,7 @@ class DigitSpanState extends Equatable {
     int? consecutiveSuccesses,
     int? consecutiveFailures,
     int? failsInCurrentSpan,
+    int? maxSpanInCurrentSession,
     bool? isEmphaticMode,
     bool? isGamificationEnabled,
     SoundSetting? soundSetting,
@@ -113,6 +118,7 @@ class DigitSpanState extends Equatable {
       consecutiveSuccesses: consecutiveSuccesses ?? this.consecutiveSuccesses,
       consecutiveFailures: consecutiveFailures ?? this.consecutiveFailures,
       failsInCurrentSpan: failsInCurrentSpan ?? this.failsInCurrentSpan,
+      maxSpanInCurrentSession: maxSpanInCurrentSession ?? this.maxSpanInCurrentSession,
       isEmphaticMode: isEmphaticMode ?? this.isEmphaticMode,
       isGamificationEnabled: isGamificationEnabled ?? this.isGamificationEnabled,
       soundSetting: soundSetting ?? this.soundSetting,
@@ -129,9 +135,24 @@ class DigitSpanState extends Equatable {
 
   @override
   List<Object?> get props => [
-        phase, gameType, gameMode, sequenceLength, consecutiveSuccesses,
-        consecutiveFailures, failsInCurrentSpan, isEmphaticMode, isGamificationEnabled, 
-        soundSetting, speedFactor, fastTestStartingLevel, resultsHistory, currentSequence,
-        expectedSequence, userInput, currentlyDisplayedDigit, highScores
+        phase,
+        gameType,
+        gameMode,
+        sequenceLength,
+        consecutiveSuccesses,
+        consecutiveFailures,
+        failsInCurrentSpan,
+        maxSpanInCurrentSession,
+        isEmphaticMode,
+        isGamificationEnabled,
+        soundSetting,
+        speedFactor,
+        fastTestStartingLevel,
+        resultsHistory,
+        currentSequence,
+        expectedSequence,
+        userInput,
+        currentlyDisplayedDigit,
+        highScores,
       ];
 }

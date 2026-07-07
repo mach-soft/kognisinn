@@ -26,9 +26,9 @@
   "dialog_exit_body": "Kognitivní růst vyžaduje konzistenci. Opravdu si přeješ aplikaci ukončit?",
   "global_btn_stay": "ZŮSTAT",
   "global_btn_exit": "UKONČIT",
-  "menu_title": "KOGNIX",
+  "menu_title": "KOGNISINN",
   "menu_subtitle": "NEUROKOGNITIVNÍ TRÉNINK",
-  "menu_btn_dnb": "Dual N-Back",
+  "menu_btn_dnb": "Multi N-Back",
   "menu_btn_digit_span": "Digit Span",
   "menu_btn_stroop": "Stroopův Test",
   "menu_btn_ecorsi": "eCorsi Test",
@@ -43,7 +43,7 @@
   "settings_mute_all": "Ztlumit veškeré zvuky",
   "settings_volume_desc": "Hlasitost pípnutí a odezvy",
   "settings_section_language": "JAZYK / LANGUAGE / SPRACHE",
-  "dnb_title": "DUAL N-BACK",
+  "dnb_title": "MULTI N-BACK",
   "global_interrupt_title": "Přerušit stimulaci?",
   "global_interrupt_body": "Neuložený postup z této relace bude ztracen.",
   "dnb_status": "ÚROVEŇ N={} | KOLO {}/{}",
@@ -231,7 +231,7 @@
   "about_website": "Web:",
   "about_version": "Verze",
   "about_support_title": "Podpořte vývoj",
-  "about_support_text": "Kognix je vyvíjen ve volném čase a zcela zdarma a bez reklam a bez sběru dat. Pokud vám aplikace pomáhá tak můžete její další vývoj podpořit symbolickou kávou. Děkuji!",
+  "about_support_text": "Kognisinn je vyvíjen ve volném čase a zcela zdarma a bez reklam a bez sběru dat. Pokud vám aplikace pomáhá tak můžete její další vývoj podpořit symbolickou kávou. Děkuji!",
   "about_btn_donate": "Podpořit na Ko-fi",
   "dnb_daily_goal": "Denní cíl",
   "dnb_daily_progress": "Dnešní skóre",
@@ -267,7 +267,7 @@
   "profile_asc": "Asociativní\npaměť",
   "profile_att": "Rychlost a\npozornost",
   "profile_kci_title": "CELKOVÝ KCI INDEX",
-  "profile_kci_subtitle": "Kognix Cognitive Index",
+  "profile_kci_subtitle": "Kognisinn Cognitive Index",
   "profile_stat_wm": "Pracovní paměť",
   "profile_stat_vs": "Vizuoprostorová orientace",
   "profile_stat_exe": "Exekutivní kontrola (Inhibice)",
@@ -325,7 +325,35 @@
   "onboard_haptic_test": "TEST VIBRACE",
   "onboard_haptic_settings": "Otevřít nastavení telefonu",
   "onboard_disclaimer_title": "Lékařské upozornění",
-  "onboard_disclaimer_desc": "Kognix není zdravotnický prostředek a neslouží k diagnostice ani léčbě. Výsledky v aplikaci nelze považovat za odborné lékařské hodnocení.",
+  "onboard_disclaimer_desc": "Kognisinn není zdravotnický prostředek a neslouží k diagnostice ani léčbě. Výsledky v aplikaci nelze považovat za odborné lékařské hodnocení.",
   "onboard_disclaimer_checkbox": "Rozumím a beru na vědomí limity aplikace.",
-  "onboard_disclaimer_error": "Pro pokračování musíte potvrdit souhlas."
+  "onboard_disclaimer_error": "Pro pokračování musíte potvrdit souhlas.",
+  "dnb_settings_modalities": "Modality",
+  "global_training_paused": "Trénink pozastaven",
+  "dnb_btn_color": "Barva",
+  "dnb_btn_shape": "Tvar",
+  "dnb_modality_standard": "Standard",
+  "dnb_modality_advanced": "Pokročilý",
+  "dnb_modality_expert": "Expert",
+  "dnb_settings_adaptive_step": "ZRYCHLENÍ PO ÚSPĚCHU",
+  "dnb_settings_adaptive_count": "ADAPTAČNÍ KROKY (PŘED DALŠÍM N)",
+  "dnb_settings_adaptive_var": "FINÁLNÍ STUPEŇ: VARIABILNÍ ČASOVÁNÍ",
+  "dnb_settings_adaptive_min": "NEJNIŽŠÍ ČASOVÁNÍ",
+  "dnb_settings_sequence_title": "Dynamika obtížnosti pro jedno N",
+  "global_settings_gamification": "ZOBRAZOVAT GAMIFIKOVANÉ HODNOTY",
+  "onboarding_gamification_title": "Způsob hodnocení",
+  "onboarding_gamification_desc": "Ačkoliv samotné tréninkové moduly odpovídají vědecké metodice, pro lepší představu o vašem pokroku nabízíme gamifikovaný systém hodnocení. Průměrný začátečník v něm dosahuje skóre 100, teoretické lidské maximum je kolem 200. Toto skóre není vypočítáno žádnou standardizovanou vědeckou metodou, jde pouze o náš hrubý odhad k udržení motivace. Chcete zobrazovat tyto gamifikované hodnoty?",
+  "onboard_btn_finish": "DOKONČIT",
+  "global_progress": "Celkový pokrok",
+  "global_score_kci": "Skóre: {} KCI"
+
+
+
+
+
+
+
+
+
+
 }

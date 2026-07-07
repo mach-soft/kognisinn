@@ -1,7 +1,7 @@
-name: cognitive_trainer
+name: kognisinn
 description: "Aplikace pro kognitivní trénink"
 publish_to: 'none'
-version: 0.9.0-beta
+version: 0.9.1-beta
 
 environment:
   sdk: '>=3.2.3 <4.0.0'

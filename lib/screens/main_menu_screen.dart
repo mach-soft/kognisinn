@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // PŘIDÁN IMPORT
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_bloc/flutter_bloc.dart'; // PŘIDÁNO: Nutné pro čtení ze SettingsBloc
 
 import 'calibration/calibration_screen.dart';
 import 'cognitive_profile_screen.dart';
 import 'digit_span/digit_span_screen.dart';
-import 'dual_n_back/dual_n_back_screen.dart';
+import 'multi_n_back/multi_n_back_screen.dart';
 import 'stroop/stroop_screen.dart';
 import 'e_corsi/e_corsi_screen.dart';
 import 'memory_palace/memory_palace_screen.dart';
 import 'global_settings_screen.dart';
+import '../bloc/settings/settings_bloc.dart';
 
 class MainMenuScreen extends StatelessWidget {
   // Tento parametr tu zůstane pro první spuštění z main.dart
@@ -18,7 +20,7 @@ class MainMenuScreen extends StatelessWidget {
   
   const MainMenuScreen({super.key, this.isCalibrated = false});
 
-  // --- NOVÉ: Funkce, která vždy bezpečně ověří skutečný stav v paměti ---
+  // --- Funkce, která vždy bezpečně ověří skutečný stav v paměti ---
   Future<bool> _checkCalibrationStatus() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('global_is_calibrated') ?? false;
@@ -140,48 +142,58 @@ class MainMenuScreen extends StatelessWidget {
     );
   }
 
-  // --- MÍSTO PRO BUDOUCÍ GRAF (Nyní klikací) ---
+  // --- Kognitivní profil s kontrolou gamifikace ---
   Widget _buildRadarChartPlaceholder(BuildContext context, bool isDark) {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
-    return Container(
-      width: 320,
-      height: 220,
-      margin: const EdgeInsets.only(bottom: 40),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.white.withAlpha(5) : Colors.black.withAlpha(5),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(24),
-          onTap: () {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const CognitiveProfileScreen()));
-          },
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.radar_rounded, color: accent.withAlpha(100), size: 48),
-                const SizedBox(height: 12),
-                // PŘELOŽENO: Titulek karty
-                Text('menu_profile_title'.tr(), style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 8),
-                Row(
+    
+    // Zde obalíme kartu BlocBuilderem, aby reagovala na změnu v SettingsBlocu
+    return BlocBuilder<SettingsBloc, SettingsState>(
+      builder: (context, state) {
+        // Pokud je gamifikace VYPNUTÁ, skryj kartu profilu
+        if (!state.showGamifiedValues) {
+          return const SizedBox.shrink();
+        }
+
+        // Jinak ji normálně vykresli
+        return Container(
+          width: 320,
+          height: 220,
+          margin: const EdgeInsets.only(bottom: 40),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.white.withAlpha(5) : Colors.black.withAlpha(5),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(24),
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const CognitiveProfileScreen()));
+              },
+              child: Center(
+                child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // PŘELOŽENO: Tlačítko
-                    Text('menu_profile_btn'.tr().toUpperCase(), style: TextStyle(color: accent, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
-                    const SizedBox(width: 4),
-                    Icon(Icons.arrow_forward_rounded, color: accent, size: 14),
+                    Icon(Icons.radar_rounded, color: accent.withAlpha(100), size: 48),
+                    const SizedBox(height: 12),
+                    Text('menu_profile_title'.tr(), style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('menu_profile_btn'.tr().toUpperCase(), style: TextStyle(color: accent, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                        const SizedBox(width: 4),
+                        Icon(Icons.arrow_forward_rounded, color: accent, size: 14),
+                      ],
+                    )
                   ],
-                )
-              ],
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -198,13 +210,11 @@ class MainMenuScreen extends StatelessWidget {
         await _showExitDialog(context, isDark);
       },
       child: Scaffold(
-        // --- NOVÉ: FutureBuilder zajistí, že se isCalibrated zjistí vždy aktuální ---
         body: FutureBuilder<bool>(
           future: _checkCalibrationStatus(),
-          initialData: isCalibrated, // Jako výchozí vezme to, co mu předalo main.dart
+          initialData: isCalibrated, 
           builder: (context, snapshot) {
             
-            // Toto je nyní SVATÁ PRAVDA vytažená přímo z paměti
             bool currentIsCalibrated = snapshot.data ?? isCalibrated;
 
             return Container(
@@ -253,13 +263,25 @@ class MainMenuScreen extends StatelessWidget {
                           ),
                         ),
                         
-                        // --- ROZHODOVÁNÍ JE NYNÍ BEZCHYBNÉ ---
-                        if (!currentIsCalibrated) 
-                          _buildCalibrationCard(context, isDark)
-                        else 
-                          _buildRadarChartPlaceholder(context,isDark),
+                                                // --- OPRAVA: KONTROLA GAMIFIKACE PRO KALIBRACI I PROFIL ---
+                        BlocBuilder<SettingsBloc, SettingsState>(
+                          builder: (context, state) {
+                            // Pokud je gamifikace VYPNUTÁ, skryj úplně všechno (kalibraci i profil)
+                            if (!state.showGamifiedValues) {
+                              return const SizedBox.shrink(); 
+                            }
+                            
+                            // Pokud je ZAPNUTÁ, rozhodni se podle toho, zda už proběhla kalibrace
+                            if (!currentIsCalibrated) {
+                              return _buildCalibrationCard(context, isDark);
+                            } else {
+                              return _buildRadarChartPlaceholder(context, isDark);
+                            }
+                          },
+                        ),
 
-                        _menuBtn(context, 'menu_btn_dnb'.tr(), Icons.memory_rounded, isDark, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DualNBackScreen()))),
+
+                        _menuBtn(context, 'Multi N-Back', Icons.memory_rounded, isDark, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MultiNBackScreen()))),
                         const SizedBox(height: 18),
                         _menuBtn(context, 'menu_btn_digit_span'.tr(), Icons.onetwothree_rounded, isDark, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DigitSpanScreen()))),
                         const SizedBox(height: 18),

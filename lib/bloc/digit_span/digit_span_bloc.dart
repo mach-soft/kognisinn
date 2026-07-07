@@ -65,6 +65,74 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
     on<PlayNextRoundEvent>(_onPlayNextRound);
   }
 
+  // --- JEDINÝ ZDROJ PRAVDY PRO KCI (s modifikátory) ---
+  static int calculateKci(double span, GameMode mode) {
+    if (span <= 0 || span.isNaN || span.isInfinite) return 0;
+    
+    double modifier = 1.0;
+    if (mode == GameMode.ascending) modifier = 1.15;
+    if (mode == GameMode.reverse) modifier = 1.35;
+    
+    double val = span * modifier;
+
+    double worst = 3.0;     
+    double baseline = 5.5;  
+    double trained = 9.0;   
+
+    double score = 0;
+    if (val <= baseline) {
+      score = (((val - worst) / (baseline - worst)) * 100.0);
+    } else {
+      score = 100.0 + (((val - baseline) / (trained - baseline)) * 100.0);
+    }
+    
+    return score.round().clamp(0, 250);
+  }
+
+  // --- INTERNÍ METODA PRO ULOŽENÍ RELACE ---
+  Future<void> _saveSessionData() async {
+    if (_prefs == null || state.maxSpanInCurrentSession <= 0) return;
+    
+    final nowStr = DateTime.now().toIso8601String();
+    final span = state.maxSpanInCurrentSession;
+    final mode = state.gameMode.name;
+
+    // 1. ZÁPIS SUROVÝCH DAT (Pro grafy v UI modulu) - Formát: Datum|Mód|Kapacita
+    List<String> rawHistory = _prefs!.getStringList('ds_raw_history') ?? [];
+    rawHistory.add('$nowStr|$mode|$span');
+    if (rawHistory.length > 200) rawHistory.removeAt(0); // Držíme max 200 záznamů pro modul
+    await _prefs!.setStringList('ds_raw_history', rawHistory);
+
+    // 2. EXPORT DO KOGNITIVNÍHO PROFILU (Slepý příjemce hotového KCI)
+    final exportKci = calculateKci(span.toDouble(), state.gameMode).toDouble();
+    
+    // A: Historie KCI pro medián
+    List<String> historyKCI = _prefs!.getStringList('history_digit_span') ?? [];
+    historyKCI.add(exportKci.toString());
+    if (historyKCI.length > 50) historyKCI.removeAt(0);
+    await _prefs!.setStringList('history_digit_span', historyKCI);
+
+    // B: Denní agregát KCI (Ukládá maximum daného dne)
+    final today = nowStr.substring(0, 10);
+    List<String> dailyRaw = _prefs!.getStringList('ds_daily_history') ?? [];
+    Map<String, double> dailyMap = {};
+    for (String entry in dailyRaw) {
+      final parts = entry.split('|');
+      if (parts.length == 2) dailyMap[parts[0]] = double.tryParse(parts[1]) ?? 0.0;
+    }
+    if (dailyMap.containsKey(today)) {
+      if (exportKci > dailyMap[today]!) dailyMap[today] = exportKci;
+    } else {
+      dailyMap[today] = exportKci;
+    }
+    var sortedKeys = dailyMap.keys.toList()..sort();
+    if (sortedKeys.length > 10) sortedKeys = sortedKeys.sublist(sortedKeys.length - 10);
+    await _prefs!.setStringList('ds_daily_history', sortedKeys.map((k) => '$k|${dailyMap[k]}').toList());
+    
+    // C: Validita
+    await _prefs!.setInt('validity_digit_span', sortedKeys.length);
+  }
+
   Future<void> _onInitializeHardware(InitializeHardwareEvent event, Emitter<DigitSpanState> emit) async {
     try {
       _prefs = await SharedPreferences.getInstance();
@@ -143,7 +211,14 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
     bool emp = false;
 
     if (state.gameType == GameType.training) {
-      emit(state.copyWith(gameMode: event.mode, phase: GamePhase.choosingLevel, sequenceLength: seqLen, failsInCurrentSpan: 0, isEmphaticMode: false));
+      emit(state.copyWith(
+        gameMode: event.mode, 
+        phase: GamePhase.choosingLevel, 
+        sequenceLength: seqLen, 
+        failsInCurrentSpan: 0, 
+        maxSpanInCurrentSession: 0,
+        isEmphaticMode: false
+      ));
       return;
     }
 
@@ -178,12 +253,15 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
       consecutiveSuccesses: succ,
       consecutiveFailures: fail,
       failsInCurrentSpan: 0,
+      maxSpanInCurrentSession: 0, // Reset při startu
       isEmphaticMode: emp,
     ));
     add(PlayNextRoundEvent());
   }
 
   Future<void> _onSaveGameAndExit(SaveGameAndExitEvent event, Emitter<DigitSpanState> emit) async {
+    await _saveSessionData(); // ULOŽENÍ PŘI MANUÁLNÍM OPUŠTĚNÍ
+    
     if (_prefs != null) {
       String modeStr = state.gameMode.toString();
       await _prefs!.setInt('${modeStr}_level', state.sequenceLength);
@@ -231,7 +309,7 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
     }
   }
 
-    void _generateSequences(Emitter<DigitSpanState> emit) {
+  void _generateSequences(Emitter<DigitSpanState> emit) {
     List<int> currentSeq = [];
     List<int> expectedSeq = [];
 
@@ -252,7 +330,6 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
       currentSeq.add(val);
     }
 
-    // Odstraněn zbytečný default, protože výčet pokrývá všechny 3 stavy
     switch (state.gameMode) {
       case GameMode.forward: expectedSeq = List.from(currentSeq); break;
       case GameMode.reverse: expectedSeq = List.from(currentSeq.reversed); break;
@@ -261,7 +338,6 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
     
     emit(state.copyWith(currentSequence: currentSeq, expectedSequence: expectedSeq));
   }
-
 
   void _onBackspacePressed(BackspacePressedEvent event, Emitter<DigitSpanState> emit) {
     if (state.userInput.isNotEmpty) {
@@ -299,7 +375,12 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
     emit(state.copyWith(resultsHistory: history));
 
     if (isCorrect) {
-      emit(state.copyWith(phase: GamePhase.showingSuccess));
+      // Aktualizace maxima pro tuto relaci
+      int newMax = state.maxSpanInCurrentSession;
+      if (state.sequenceLength > newMax) newMax = state.sequenceLength;
+
+      emit(state.copyWith(phase: GamePhase.showingSuccess, maxSpanInCurrentSession: newMax));
+      
       if (state.soundSetting == SoundSetting.numbersAndFeedback) _flutterTts.speak("ds_tts_correct".tr());
       
       await Future.delayed(const Duration(milliseconds: 1500));
@@ -359,6 +440,7 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
         int newFails = state.failsInCurrentSpan + 1;
         
         if (newFails >= 2) {
+          await _saveSessionData(); // ULOŽENÍ PŘI PROHŘE
           emit(state.copyWith(phase: GamePhase.gameOver));
         } else {
           emit(state.copyWith(failsInCurrentSpan: newFails));
@@ -388,6 +470,7 @@ class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
         
         add(PlayNextRoundEvent());
       } else {
+        await _saveSessionData(); // ULOŽENÍ PŘI PROHŘE V TRAINING MODU (Pokud uživatel v něm chybuje a chce odejít s uložením)
         emit(state.copyWith(phase: GamePhase.gameOver));
       }
     }

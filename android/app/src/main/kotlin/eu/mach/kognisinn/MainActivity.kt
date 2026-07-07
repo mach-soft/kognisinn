@@ -1,4 +1,4 @@
-package eu.mach.kognix
+package eu.mach.kognisinn
 
 import io.flutter.embedding.android.FlutterActivity
 

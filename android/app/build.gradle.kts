@@ -13,7 +13,7 @@ plugins {
 }
 
 android {
-    namespace = "eu.mach.kognix"
+    namespace = "eu.mach.kognisinn"
     
     // ZMĚNA: AndroidX knihovny vyžadují kompilaci proti API 36
     compileSdk = 36 
@@ -31,7 +31,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "eu.mach.kognix"
+        applicationId = "eu.mach.kognisinn"
         
         minSdk = flutter.minSdkVersion 
         

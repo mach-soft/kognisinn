@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart'; 
-import 'package:wiredash/wiredash.dart'; // PŘIDÁN IMPORT PRO WIREDASH
+import 'package:wiredash/wiredash.dart'; 
 
 import '../bloc/settings/settings_bloc.dart';
 import 'about_app_screen.dart';
@@ -62,6 +62,25 @@ class GlobalSettingsScreen extends StatelessWidget {
                             onChanged: (val) => context.read<SettingsBloc>().add(UpdateTheme(val)),
                           )),
                           
+                          const SizedBox(height: 32),
+
+                          // --- PŘIDÁNO: SEKCE GAMIFIKACE ---
+                          _sectionTitle('onboarding_gamification_title'.tr(), accentColor),
+                          _card(cardBg, borderColor, Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            child: SwitchListTile(
+                              title: Text('global_settings_gamification'.tr(), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                              subtitle: Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Text('onboarding_gamification_desc'.tr(), style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontSize: 11, height: 1.4)),
+                              ),
+                              value: state.showGamifiedValues,
+                              activeThumbColor: accentColor,
+                              activeTrackColor: accentColor.withAlpha(80),
+                              onChanged: (val) => context.read<SettingsBloc>().add(ToggleGamification(val)),
+                            ),
+                          )),
+
                           const SizedBox(height: 32),
 
                           _sectionTitle('settings_section_sounds'.tr(), accentColor),
@@ -175,7 +194,7 @@ class GlobalSettingsScreen extends StatelessWidget {
                           
                           const SizedBox(height: 40),
 
-                          // --- PŘIDÁNO: TLAČÍTKO PRO ZPĚTNOU VAZBU (WIREDASH) ---
+                          // TLAČÍTKO PRO ZPĚTNOU VAZBU (WIREDASH)
                           Center(
                             child: OutlinedButton.icon(
                               onPressed: () {
@@ -183,10 +202,9 @@ class GlobalSettingsScreen extends StatelessWidget {
                               },
                               icon: const Icon(Icons.bug_report_rounded, color: Colors.orange),
                               label: Text(
-  'global_feedback_btn'.tr(), 
-  style: TextStyle(fontWeight: FontWeight.bold, color: textColor)
-),
-
+                                'global_feedback_btn'.tr(), 
+                                style: TextStyle(fontWeight: FontWeight.bold, color: textColor)
+                              ),
                               style: OutlinedButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                                 side: BorderSide(color: Colors.orange.withAlpha(100), width: 1.5),
@@ -233,7 +251,7 @@ class GlobalSettingsScreen extends StatelessWidget {
     return ListTile(
       leading: Text(flag, style: const TextStyle(fontSize: 24)),
       title: Text(label, style: TextStyle(color: textColor, fontWeight: isSel ? FontWeight.bold : FontWeight.normal)),
-      trailing: isSel ? const Icon(Icons.check_circle, color: Color(0xFF00E5FF)) : null,
+      trailing: isSel ? const Icon(Icons.check_circle, color:  Color(0xFF00E5FF)) : null,
       onTap: () => context.setLocale(Locale(code)),
     );
   }

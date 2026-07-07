@@ -26,9 +26,9 @@
   "dialog_exit_body": "Kognitives Wachstum erfordert Konsistenz. Möchtest du die App wirklich beenden?",
   "global_btn_stay": "BLEIBEN",
   "global_btn_exit": "BEENDEN",
-  "menu_title": "KOGNIX",
+  "menu_title": "KOGNISINN",
   "menu_subtitle": "NEUROKOGNITIVES TRAINING",
-  "menu_btn_dnb": "Dual N-Back",
+  "menu_btn_dnb": "Multi N-Back",
   "menu_btn_digit_span": "Zahlenspanne",
   "menu_btn_stroop": "Stroop-Test",
   "menu_btn_ecorsi": "eCorsi-Test",
@@ -43,7 +43,7 @@
   "settings_mute_all": "Alle Töne stummschalten",
   "settings_volume_desc": "Lautstärke von Signaltönen und Feedback",
   "settings_section_language": "SPRACHE",
-  "dnb_title": "DUAL N-BACK",
+  "dnb_title": "MULTI N-BACK",
   "global_interrupt_title": "Stimulation unterbrechen?",
   "global_interrupt_body": "Nicht gespeicherter Fortschritt dieser Sitzung geht verloren.",
   "dnb_status": "LEVEL N={} | RUNDE {}/{}",
@@ -231,7 +231,7 @@
   "about_website": "Webseite:",
   "about_version": "Version",
   "about_support_title": "Entwicklung unterstützen",
-  "about_support_text": "Kognix wird in der Freizeit entwickelt und ist völlig kostenlos und werbefrei und ohne Datenerfassung. Wenn Ihnen die App hilft dann können Sie die Weiterentwicklung mit einem symbolischen Kaffee unterstützen. Vielen Dank!",
+  "about_support_text": "Kognisinn wird in der Freizeit entwickelt und ist völlig kostenlos und werbefrei und ohne Datenerfassung. Wenn Ihnen die App hilft dann können Sie die Weiterentwicklung mit einem symbolischen Kaffee unterstützen. Vielen Dank!",
   "about_btn_donate": "Auf Ko-fi unterstützen",
   "dnb_daily_goal": "Tagesziel",
   "dnb_daily_progress": "Heutiges Ergebnis",
@@ -267,7 +267,7 @@
   "profile_asc": "Assoziatives\nGedächtnis",
   "profile_att": "Geschwindigkeit &\nAufmerksamkeit",
   "profile_kci_title": "GESAMTER KCI-INDEX",
-  "profile_kci_subtitle": "Kognix Cognitive Index",
+  "profile_kci_subtitle": "Kognisinn Cognitive Index",
   "profile_stat_wm": "Arbeitsgedächtnis",
   "profile_stat_vs": "Visuell-räumliche Orientierung",
   "profile_stat_exe": "Exekutive Kontrolle (Hemmung)",
@@ -325,8 +325,33 @@
   "onboard_haptic_test": "VIBRATION TESTEN",
   "onboard_haptic_settings": "Einstellungen öffnen",
   "onboard_disclaimer_title": "Medizinischer Hinweis",
-  "onboard_disclaimer_desc": "Kognix ist kein Medizinprodukt. Es dient ausschließlich dem allgemeinen kognitiven Training und darf nicht zur Diagnose oder Behandlung medizinischer oder psychologischer Beschwerden verwendet werden.",
+  "onboard_disclaimer_desc": "Kognisinn ist kein Medizinprodukt. Es dient ausschließlich dem allgemeinen kognitiven Training und darf nicht zur Diagnose oder Behandlung medizinischer oder psychologischer Beschwerden verwendet werden.",
   "onboard_disclaimer_checkbox": "Ich verstehe und akzeptiere die Einschränkungen dieser App.",
-  "onboard_disclaimer_error": "Bitte bestätigen Sie den Hinweis, um fortzufahren."
+  "onboard_disclaimer_error": "Bitte bestätigen Sie den Hinweis, um fortzufahren.",
+  "dnb_settings_modalities": "Modalitäten",
+  "global_training_paused": "Training pausiert",
+  "dnb_btn_color": "Farbe",
+  "dnb_btn_shape": "Form",
+  "dnb_modality_standard": "Standard",
+  "dnb_modality_advanced": "Fortgeschritten",
+  "dnb_modality_expert": "Experte",
+  "dnb_settings_adaptive_step": "BESCHLEUNIGUNG NACH ERFOLG",
+  "dnb_settings_adaptive_count": "ADAPTATIONSSCHRITTE (VOR NÄCHSTEM N)",
+  "dnb_settings_adaptive_var": "LETZTE STUFE: VARIABLE TAKTUNG",
+  "dnb_settings_adaptive_min": "MINIMALE TAKTUNG",
+  "dnb_settings_sequence_title": "Schwierigkeitsdynamik pro N-Level",
+  "global_settings_gamification": "GAMIFIZIERTE WERTE ANZEIGEN",
+  "onboarding_gamification_title": "Bewertungsmethode",
+  "onboarding_gamification_desc": "Obwohl die Trainingsmodule der wissenschaftlichen Methodik entsprechen, bieten wir ein gamifiziertes Bewertungssystem an, um Ihnen eine bessere Vorstellung von Ihren Fortschritten zu geben. Ein durchschnittlicher Anfänger erreicht eine Punktzahl von 100, das theoretische menschliche Maximum liegt bei etwa 200. Diese Punktzahl wird durch keine standardisierte wissenschaftliche Methode berechnet, sondern ist nur eine grobe Schätzung zur Motivation. Möchten Sie diese gamifizierten Werte anzeigen?",
+  "onboard_btn_finish": "ABSCHLIESSEN",
+  "global_progress": "Gesamtfortschritt",
+  "global_score_kci": "Ergebnis: {} KCI"
+
+
+
+
+
+
+
 
 }

@@ -180,7 +180,7 @@ class CalibrationScreen extends StatelessWidget {
             children: [
               Icon(Icons.hub_rounded, color: Colors.white, size: 36),
               SizedBox(width: 12),
-              Text('KOGNIX', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 4)),
+              Text('KOGNISINN', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 4)),
             ],
           ),
         ),

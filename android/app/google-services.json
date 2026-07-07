@@ -7,6 +7,28 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:204120873930:android:0f4d9e3d7f7825d484cd33",
+        "android_client_info": {
+          "package_name": "eu.mach.kognisinn"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDFVkk4lH2mEmufSnuTMubqDUiUVCHkahg"
+        },
+        {
+          "current_key": "AIzaSyBiEh9sYxZfQCt5fjtTFyw4iHqGzr5UnoQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:204120873930:android:580701f5f720684a84cd33",
         "android_client_info": {
           "package_name": "eu.mach.kognix"
@@ -14,6 +36,9 @@
       },
       "oauth_client": [],
       "api_key": [
+        {
+          "current_key": "AIzaSyDFVkk4lH2mEmufSnuTMubqDUiUVCHkahg"
+        },
         {
           "current_key": "AIzaSyBiEh9sYxZfQCt5fjtTFyw4iHqGzr5UnoQ"
         }

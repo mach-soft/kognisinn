@@ -26,9 +26,9 @@
   "dialog_exit_body": "Cognitive growth requires consistency. Do you really want to exit the app?",
   "global_btn_stay": "STAY",
   "global_btn_exit": "EXIT",
-  "menu_title": "KOGNIX",
+  "menu_title": "KOGNISINN",
   "menu_subtitle": "NEUROCOGNITIVE TRAINING",
-  "menu_btn_dnb": "Dual N-Back",
+  "menu_btn_dnb": "Multi N-Back",
   "menu_btn_digit_span": "Digit Span",
   "menu_btn_stroop": "Stroop Test",
   "menu_btn_ecorsi": "eCorsi Test",
@@ -43,7 +43,7 @@
   "settings_mute_all": "Mute all sounds",
   "settings_volume_desc": "Volume of beeps and feedback",
   "settings_section_language": "LANGUAGE",
-  "dnb_title": "DUAL N-BACK",
+  "dnb_title": "MULTI N-BACK",
   "global_interrupt_title": "Interrupt stimulation?",
   "global_interrupt_body": "Unsaved progress from this session will be lost.",
   "dnb_status": "LEVEL N={} | ROUND {}/{}",
@@ -231,7 +231,7 @@
   "about_website": "Website:",
   "about_version": "Version",
   "about_support_title": "Support the Development",
-  "about_support_text": "Kognix is developed in free time and completely free of charge and with no ads and no data collection. If the app helps you then you can support its further development with a symbolic coffee. Thank you!",
+  "about_support_text": "Kognisinn is developed in free time and completely free of charge and with no ads and no data collection. If the app helps you then you can support its further development with a symbolic coffee. Thank you!",
   "about_btn_donate": "Support on Ko-fi",
   "dnb_daily_goal": "Daily Goal",
   "dnb_daily_progress": "Today's Score",
@@ -267,7 +267,7 @@
   "profile_asc": "Associative\nMemory",
   "profile_att": "Speed &\nAttention",
   "profile_kci_title": "OVERALL KCI INDEX",
-  "profile_kci_subtitle": "Kognix Cognitive Index",
+  "profile_kci_subtitle": "Kognisinn Cognitive Index",
   "profile_stat_wm": "Working Memory",
   "profile_stat_vs": "Visuospatial Orientation",
   "profile_stat_exe": "Executive Control (Inhibition)",
@@ -325,9 +325,34 @@
   "onboard_haptic_test": "TEST VIBRATION",
   "onboard_haptic_settings": "Open phone settings",
   "onboard_disclaimer_title": "Medical Disclaimer",
-  "onboard_disclaimer_desc": "Kognix is not a medical device. It is intended for general cognitive training only and should not be used to diagnose or treat any medical or psychological conditions.",
+  "onboard_disclaimer_desc": "Kognisinn is not a medical device. It is intended for general cognitive training only and should not be used to diagnose or treat any medical or psychological conditions.",
   "onboard_disclaimer_checkbox": "I understand and acknowledge the limitations of this app.",
-  "onboard_disclaimer_error": "Please acknowledge the disclaimer to continue."
+  "onboard_disclaimer_error": "Please acknowledge the disclaimer to continue.",
+  "dnb_settings_modalities": "Modalities",
+  "global_training_paused": "Training paused",
+  "dnb_btn_color": "Color",
+  "dnb_btn_shape": "Shape",
+  "dnb_modality_standard": "Standard",
+  "dnb_modality_advanced": "Advanced",
+  "dnb_modality_expert": "Expert",
+  "dnb_settings_adaptive_step": "SPEED UP AFTER SUCCESS",
+  "dnb_settings_adaptive_count": "ADAPTATION STEPS (BEFORE NEXT N)",
+  "dnb_settings_adaptive_var": "FINAL STAGE: VARIABLE TIMING",
+  "dnb_settings_adaptive_min": "MINIMUM TIMING",
+  "dnb_settings_sequence_title": "Difficulty Dynamics per N-Level",
+  "global_settings_gamification": "SHOW GAMIFIED VALUES",
+  "onboarding_gamification_title": "Evaluation Method",
+  "onboarding_gamification_desc": "Although the training modules correspond to scientific methodology, we offer a gamified scoring system to give you a better idea of your progress. An average beginner achieves a score of 100, and the theoretical human maximum is around 200. This score is not calculated by any standardized scientific method; it is just our rough estimate to keep you motivated. Do you want to display these gamified values?",
+  "onboard_btn_finish": "FINISH",
+  "global_progress": "Overall Progress",
+  "global_score_kci": "Score: {} KCI"
+
+
+
+
+
+
+
 
 
 }

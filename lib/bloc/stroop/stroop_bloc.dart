@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,6 +17,31 @@ class StroopBloc extends Bloc<StroopEvent, StroopState> {
     'ČERVENÁ': Colors.red, 'MODRÁ': Colors.blue, 'ZELENÁ': Colors.green,
     'ŽLUTÁ': Colors.yellow, 'ORANŽOVÁ': Colors.orange, 'FIALOVÁ': Colors.purple,
   };
+
+  // --- JEDINÝ ZDROJ PRAVDY (Výpočet KCI s modifikátory obtížnosti) ---
+  static int calculateKci(double medianReactionTimeMs, StroopGameType gameType) {
+    if (medianReactionTimeMs.isNaN || medianReactionTimeMs.isInfinite || medianReactionTimeMs <= 0) return 0;
+    
+    // Aplikace časového modifikátoru podle módu
+    double modifier = 1.0;
+    if (gameType == StroopGameType.reverse) modifier = 1.25;
+    else if (gameType == StroopGameType.trueFalse) modifier = 1.15;
+
+    double val = medianReactionTimeMs * modifier;
+
+    double worst = 2000.0;     // Bez tréninku
+    double baseline = 850.0;   // Průměr (100 KCI)
+    double trained = 450.0;    // Mistr (200 KCI)
+
+    double score = 0;
+    if (val >= baseline) {
+      score = 100.0 - (((val - baseline) / (worst - baseline)) * 100.0);
+    } else {
+      score = 100.0 + (((baseline - val) / (baseline - trained)) * 100.0);
+    }
+    
+    return score.round().clamp(0, 250);
+  }
 
   StroopBloc() : super(const StroopState()) {
     _initPrefs();
@@ -50,7 +74,6 @@ class StroopBloc extends Bloc<StroopEvent, StroopState> {
     
     bool isCorrect = event.answer == state.correctAnswer;
 
-    // --- HAPTICKÁ ODEZVA PŘI CHYBĚ ---
     if (!isCorrect) {
       bool isHaptic = _prefs?.getBool('global_is_haptic') ?? true;
       if (isHaptic) {
@@ -58,29 +81,19 @@ class StroopBloc extends Bloc<StroopEvent, StroopState> {
         Vibration.vibrate(duration: hDuration);
       }
     }
-    // ---------------------------------
 
     int newScore = isCorrect ? state.score + 1 : state.score;
     List<int> newTimes = List.from(state.currentReactionTimesMs)..add(elapsed);
 
     if (state.currentRound >= state.totalRounds) {
       
-      // === VĚDECKÁ FILTRACE OUTLIERŮ (2 SD) ===
-      
-      // 1. Výpočet průměru (Mean)
       double mean = newTimes.reduce((a, b) => a + b) / newTimes.length;
-
-      // 2. Výpočet směrodatné odchylky (Standard Deviation)
       double variance = newTimes.map((t) => pow(t - mean, 2)).reduce((a, b) => a + b) / newTimes.length;
       double sd = sqrt(variance);
 
-      // 3. Filtrace - odstranění hodnot ležících mimo hranici 2 SD
       List<int> validTimes = newTimes.where((t) => (t - mean).abs() <= 2 * sd).toList();
-      
-      // Záchranná síť pro případ extrémně malého/anomálního vzorku
       if (validTimes.isEmpty) validTimes = newTimes;
 
-      // 4. Výpočet robustního mediánu z očištěných dat
       validTimes.sort();
       int mid = validTimes.length ~/ 2;
       double robustMedianMs = validTimes.length % 2 != 0 
@@ -88,47 +101,46 @@ class StroopBloc extends Bloc<StroopEvent, StroopState> {
           : (validTimes[mid - 1] + validTimes[mid]) / 2.0;
       
       double sessionRobustMedian = robustMedianMs / 1000.0;
-      
-      // ==========================================
 
+      // 1. Uložení interní historie v čistých datech
       final newItem = StroopHistoryItem(DateTime.now(), newScore, state.totalRounds, sessionRobustMedian, state.activeGameType);
       final newHistory = List<StroopHistoryItem>.from(state.history)..add(newItem);
-      
       _prefs?.setStringList('stroop_history', newHistory.map((e) => e.toRawString()).toList());
-            // 2. Odeslání do KCI profilu a analytiky
-      if (_prefs != null) {
+      
+      // 2. Odeslání do KCI profilu (Všechny módy, úspěšnost >= 70 %)
+      double successRate = state.totalRounds > 0 ? (newScore / state.totalRounds) : 0;
+      if (_prefs != null && successRate >= 0.70) {
         final nowStr = DateTime.now().toIso8601String();
-        // Zde ukládáme sessionRobustMedian (čím menší čas v sekundách, tím lépe)
-        final scoreVal = sessionRobustMedian * 1000.0; // Převod zpět na ms pro uložení
         
-        // A: Surová historie pro KCI (držíme 50 záznamů)
+        // VÝPOČET KCI V MODULU
+        final exportKci = calculateKci(robustMedianMs, state.activeGameType).toDouble(); 
+        
+        // A: Historie pro Profil
         List<String> historyKCI = _prefs!.getStringList('history_stroop') ?? [];
-        historyKCI.add(scoreVal.toString());
+        historyKCI.add(exportKci.toString());
         if (historyKCI.length > 50) historyKCI.removeAt(0);
         _prefs!.setStringList('history_stroop', historyKCI);
         
-        // B: Denní agregát pro graf (bere minimum = nejrychlejší čas z daného dne)
+        // B: Denní agregát (ukládá MAXIMUM KCI)
         final today = nowStr.substring(0, 10);
         List<String> dailyRaw = _prefs!.getStringList('stroop_daily_history') ?? [];
         Map<String, double> dailyMap = {};
         
         for (String entry in dailyRaw) {
           final parts = entry.split('|');
-          if (parts.length == 2) dailyMap[parts[0]] = double.tryParse(parts[1]) ?? 3000.0;
+          if (parts.length == 2) dailyMap[parts[0]] = double.tryParse(parts[1]) ?? 0.0;
         }
         
         if (dailyMap.containsKey(today)) {
-          if (scoreVal < dailyMap[today]!) dailyMap[today] = scoreVal; // Tady chceme MINIMUM!
+          if (exportKci > dailyMap[today]!) dailyMap[today] = exportKci; 
         } else {
-          dailyMap[today] = scoreVal;
+          dailyMap[today] = exportKci;
         }
         
         var sortedKeys = dailyMap.keys.toList()..sort();
         if (sortedKeys.length > 10) sortedKeys = sortedKeys.sublist(sortedKeys.length - 10);
         
         _prefs!.setStringList('stroop_daily_history', sortedKeys.map((k) => '$k|${dailyMap[k]}').toList());
-        
-        // C: Validita
         _prefs!.setInt('validity_inhibition', sortedKeys.length);
       }
 
@@ -141,7 +153,6 @@ class StroopBloc extends Bloc<StroopEvent, StroopState> {
 
   void _generateTask(Emitter<StroopState> emit) {
     List<String> names = _colorMap.keys.toList();
-    
     String word = names[_random.nextInt(names.length)];
     String inkName = names[_random.nextInt(names.length)];
     
@@ -152,10 +163,10 @@ class StroopBloc extends Bloc<StroopEvent, StroopState> {
     String correct = '';
 
     if (state.activeGameType == StroopGameType.standard) {
-      options = List.from(names); // ODSTRANĚNO .shuffle() - Fixní rozložení kláves
+      options = List.from(names); 
       correct = inkName;
     } else if (state.activeGameType == StroopGameType.reverse) {
-      options = List.from(names); // ODSTRANĚNO .shuffle() - Fixní rozložení kláves
+      options = List.from(names); 
       correct = word;
     } else {
       options = ['PRAVDA', 'NEPRAVDA'];

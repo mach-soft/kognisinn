@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "kognix" "\0"
+            VALUE "FileDescription", "kognisinn" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "kognix" "\0"
+            VALUE "InternalName", "kognisinn" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "kognix.exe" "\0"
-            VALUE "ProductName", "kognix" "\0"
+            VALUE "OriginalFilename", "kognisinn.exe" "\0"
+            VALUE "ProductName", "kognisinn" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

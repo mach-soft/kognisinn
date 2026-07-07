@@ -1,74 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:fl_chart/fl_chart.dart'; // PŘIDÁNO: Knihovna pro grafy
-// import 'package:intl/intl.dart'; // ODSTRANĚNO (zajišťuje easy_localization)
+import 'package:fl_chart/fl_chart.dart'; 
 import '../../bloc/memory_palace/memory_palace_bloc.dart';
+import '../../bloc/settings/settings_bloc.dart';
 
 class MemoryPalaceScreen extends StatelessWidget {
   const MemoryPalaceScreen({super.key});
-
-  // --- FUNKCE: EXPORT DO KOGNITIVNÍHO PROFILU ---
-  Future<void> _saveTestToProfile(double newScore) async {
-    final prefs = await SharedPreferences.getInstance();
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-    List<String> dailyHistory = prefs.getStringList('palace_daily_history') ?? [];
-    Map<String, double> dailyMaxes = {};
-
-    for (var entry in dailyHistory) {
-      final parts = entry.split('|');
-      if (parts.length == 2) {
-        dailyMaxes[parts[0]] = double.tryParse(parts[1]) ?? 0.0;
-      }
-    }
-
-    if (dailyMaxes.containsKey(today)) {
-      if (newScore > dailyMaxes[today]!) {
-        dailyMaxes[today] = newScore;
-      }
-    } else {
-      dailyMaxes[today] = newScore;
-    }
-
-    var sortedKeys = dailyMaxes.keys.toList()..sort();
-    if (sortedKeys.length > 10) {
-      sortedKeys = sortedKeys.sublist(sortedKeys.length - 10);
-    }
-
-    List<String> newHistoryToSave = [];
-    List<double> valuesForMedian = [];
-
-    for (var key in sortedKeys) {
-      newHistoryToSave.add('$key|${dailyMaxes[key]}');
-      valuesForMedian.add(dailyMaxes[key]!);
-    }
-
-    await prefs.setStringList('palace_daily_history', newHistoryToSave);
-
-    valuesForMedian.sort();
-    double median = 0.0;
-    int length = valuesForMedian.length;
-    if (length > 0) {
-      if (length % 2 == 1) {
-        median = valuesForMedian[length ~/ 2];
-      } else {
-        median = (valuesForMedian[(length ~/ 2) - 1] + valuesForMedian[length ~/ 2]) / 2;
-      }
-    }
-
-    await prefs.setDouble('metric_associative', median);
-    await prefs.setInt('validity_associative', length);
-  }
-
-  Future<void> _saveTestToHistory(String historyKey, double newResult) async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String> history = prefs.getStringList(historyKey) ?? [];
-    history.add(newResult.toString());
-    if (history.length > 50) history.removeAt(0); 
-    await prefs.setStringList(historyKey, history);
-  }
 
   Future<bool> _showInterruptDialog(BuildContext context, bool isDark) async {
     return await showDialog<bool>(
@@ -152,12 +90,7 @@ class MemoryPalaceScreen extends StatelessWidget {
         listenWhen: (previous, current) {
           return previous.phase != PalacePhase.result && current.phase == PalacePhase.result;
         },
-        listener: (context, state) async {
-          if (state.isAdaptive) {
-            double finalScore = state.currentSpan.toDouble();
-            await _saveTestToHistory('history_palace', finalScore);
-            await _saveTestToProfile(finalScore);
-          }
+        listener: (context, state) {
         },
         builder: (context, state) {
           return PopScope(
@@ -247,7 +180,6 @@ class MemoryPalaceScreen extends StatelessWidget {
             Text('palace_inst_prep'.tr(), textAlign: TextAlign.center, 
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: accentColor, letterSpacing: 3)
       ),
-
           ] else if (state.currentIndex < state.currentSpan) ...[
             Text('palace_inst_encode'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black54, letterSpacing: 2)),
             const SizedBox(height: 40),
@@ -468,20 +400,33 @@ class MemoryPalaceScreen extends StatelessWidget {
     );
   }
 
-  // --- NOVINKA: Sdílený widget pro vykreslení grafu paměťového paláce ---
-  Widget _buildPerformanceChart(List<PalaceHistoryItem> history, String title, bool isDark, Color accent) {
+  Widget _buildPerformanceChart(List<PalaceHistoryItem> history, String title, bool isDark, Color accent, bool showGamifiedValues) {
     if (history.isEmpty) return const SizedBox.shrink();
 
     final displayData = history.length > 10 ? history.sublist(history.length - 10) : history;
     
-    double minY = displayData.map((e) => e.maxSpan.toDouble()).reduce((a, b) => a < b ? a : b);
-    double maxY = displayData.map((e) => e.maxSpan.toDouble()).reduce((a, b) => a > b ? a : b);
+    // ZMĚNA 1: Volání globální statické metody
+    List<double> yValues = displayData.map((e) {
+      if (showGamifiedValues) {
+        return MemoryPalaceBloc.calculateKci(e.score).toDouble();
+      } else {
+        return e.maxSpan.toDouble();
+      }
+    }).toList();
+
+    double minY = yValues.reduce((a, b) => a < b ? a : b);
+    double maxY = yValues.reduce((a, b) => a > b ? a : b);
     
-    minY = (minY - 1).clamp(0, double.infinity);
-    maxY = maxY + 1;
+    if (showGamifiedValues) {
+      minY = (minY - 10).clamp(0, double.infinity);
+      maxY = maxY + 10;
+    } else {
+      minY = (minY - 1).clamp(0, double.infinity);
+      maxY = maxY + 1;
+    }
 
     final spots = displayData.asMap().entries.map((e) {
-      return FlSpot(e.key.toDouble(), e.value.maxSpan.toDouble());
+      return FlSpot(e.key.toDouble(), yValues[e.key]);
     }).toList();
 
     return Column(
@@ -509,7 +454,7 @@ class MemoryPalaceScreen extends StatelessWidget {
               gridData: FlGridData(
                 show: true, 
                 drawVerticalLine: false,
-                horizontalInterval: 1,
+                horizontalInterval: showGamifiedValues ? 20 : 1, 
                 getDrawingHorizontalLine: (value) => FlLine(color: isDark ? Colors.white12 : Colors.black12, strokeWidth: 1),
               ),
               titlesData: FlTitlesData(
@@ -520,8 +465,8 @@ class MemoryPalaceScreen extends StatelessWidget {
                 leftTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
-                    interval: 1,
-                    reservedSize: 30,
+                    interval: showGamifiedValues ? 50 : 1,
+                    reservedSize: 35,
                     getTitlesWidget: (value, meta) {
                       return Text(value.toInt().toString(), style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontSize: 12));
                     },
@@ -561,43 +506,52 @@ class MemoryPalaceScreen extends StatelessWidget {
 
   Widget _buildResult(BuildContext context, MemoryPalaceState state, bool isDark) {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
-    
-    // Pro výsledek chceme ukázat pouze graf z adaptivního tréninku, 
-    // protože volný trénink nevede křivku rozvoje.
     final adaptiveHistory = state.history.where((e) => e.isAdaptive).toList();
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const SizedBox(height: 40),
-          Icon(Icons.hub_rounded, size: 80, color: accent),
-          const SizedBox(height: 30),
-          Text('ds_capacity_empty'.tr(), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 3, color: isDark ? Colors.white54 : Colors.black54)),
-          const SizedBox(height: 10),
-          Text('palace_res_capacity'.tr(args: [state.currentSpan.toString()]), style: TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B))),
-          Text('palace_res_score'.tr(args: [state.score.toString()]), style: TextStyle(fontSize: 18, color: accent, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 40),
+    return BlocBuilder<SettingsBloc, SettingsState>(
+      builder: (context, settingsState) {
+        final showGamified = settingsState.showGamifiedValues;
 
-          // --- PŘIDANÝ GRAF VE VÝSLEDCÍCH ---
-          if (adaptiveHistory.isNotEmpty) ...[
-            Align(
-              alignment: Alignment.centerLeft, 
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 12.0),
-                child: Text('global_progress'.tr(), style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: isDark ? Colors.white : Colors.black)),
-              )
-            ),
-            _buildPerformanceChart(adaptiveHistory, 'global_mode_adaptive'.tr(), isDark, accent),
-          ],
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 40),
+              Icon(Icons.hub_rounded, size: 80, color: accent),
+              const SizedBox(height: 30),
+              Text('ds_capacity_empty'.tr(), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 3, color: isDark ? Colors.white54 : Colors.black54)),
+              const SizedBox(height: 10),
+              Text('palace_res_capacity'.tr(args: [state.currentSpan.toString()]), style: TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B))),
+              
+              if (showGamified)
+                // ZMĚNA 2: Volání globální statické metody
+                Text('global_score_kci'.tr(args: [MemoryPalaceBloc.calculateKci(state.score).toString()]), 
+                  style: TextStyle(fontSize: 18, color: accent, fontWeight: FontWeight.bold))
+              else
+                Text('palace_res_score'.tr(args: [state.score.toString()]), 
+                  style: TextStyle(fontSize: 18, color: accent, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 40),
 
-          const SizedBox(height: 30),
-          _menuBtn(context, 'global_btn_to_menu'.tr(), () => context.read<MemoryPalaceBloc>().add(ResetPalace()), isDark, isPrimary: true),
-          const SizedBox(height: 40),
-        ],
-      ),
+              if (adaptiveHistory.isNotEmpty) ...[
+                Align(
+                  alignment: Alignment.centerLeft, 
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: Text('global_progress'.tr(), style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: isDark ? Colors.white : Colors.black)),
+                  )
+                ),
+                _buildPerformanceChart(adaptiveHistory, 'global_mode_adaptive'.tr(), isDark, accent, showGamified),
+              ],
+
+              const SizedBox(height: 30),
+              _menuBtn(context, 'global_btn_to_menu'.tr(), () => context.read<MemoryPalaceBloc>().add(ResetPalace()), isDark, isPrimary: true),
+              const SizedBox(height: 40),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -637,26 +591,45 @@ class MemoryPalaceScreen extends StatelessWidget {
     final filtered = state.history.where((item) => item.isAdaptive == adaptive).toList();
     if (filtered.isEmpty) return Center(child: Text('global_no_data'.tr(), style: TextStyle(color: isDark ? Colors.white54 : Colors.black54)));
 
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      children: [
-        const SizedBox(height: 20),
-        // --- GRAF NAHORU V ZÁLOŽCE ---
-        if (filtered.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: _buildPerformanceChart(filtered, adaptive ? 'global_mode_adaptive'.tr() : 'palace_tab_free'.tr(), isDark, accent),
-          ),
-          
-        ...filtered.reversed.map((item) => Container(
-          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          decoration: BoxDecoration(color: isDark ? Colors.white.withAlpha(10) : accent.withAlpha(10), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white10)),
-          child: ListTile(
-            title: Text('palace_hist_item'.tr(args: [item.maxSpan.toString(), item.score.toString()]), style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1E293B))),
-            subtitle: Text('${item.date.day}.${item.date.month}. | ${item.date.hour}:${item.date.minute.toString().padLeft(2,'0')}', style: TextStyle(color: isDark ? Colors.white54 : Colors.black54)),
-          ),
-        )),
-      ],
+    return BlocBuilder<SettingsBloc, SettingsState>(
+      builder: (context, settingsState) {
+        final showGamified = settingsState.showGamifiedValues;
+
+        return ListView(
+          physics: const BouncingScrollPhysics(),
+          children: [
+            const SizedBox(height: 20),
+            if (filtered.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: _buildPerformanceChart(filtered, adaptive ? 'global_mode_adaptive'.tr() : 'palace_tab_free'.tr(), isDark, accent, showGamified),
+              ),
+              
+            ...filtered.reversed.map((item) => Container(
+              margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              decoration: BoxDecoration(color: isDark ? Colors.white.withAlpha(10) : accent.withAlpha(10), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white10)),
+              child: ListTile(
+                title: Builder(
+                  builder: (context) {
+                    String subScore;
+                    if (showGamified) {
+                      // ZMĚNA 3: Volání globální statické metody
+                      String kciText = 'global_score_kci'.tr(args: [MemoryPalaceBloc.calculateKci(item.score).toString()]);
+                      subScore = '${item.score} | $kciText';
+                    } else {
+                      subScore = item.score.toString();
+                    }
+                    
+                    return Text('palace_hist_item'.tr(args: [item.maxSpan.toString(), subScore]), 
+                      style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1E293B)));
+                  },
+                ),
+                subtitle: Text('${item.date.day}.${item.date.month}. | ${item.date.hour}:${item.date.minute.toString().padLeft(2,'0')}', style: TextStyle(color: isDark ? Colors.white54 : Colors.black54)),
+              ),
+            )),
+          ],
+        );
+      }
     );
   }
 

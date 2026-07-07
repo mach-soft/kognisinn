@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-// import 'package:intl/intl.dart'; // SCHVÁLNĚ ODSTRANĚNO (zajišťuje easy_localization)
+// import 'package:fl_chart/fl_chart.dart'; 
 import '../../bloc/stroop/stroop_bloc.dart';
 import '../../bloc/stroop/stroop_event.dart';
 import '../../bloc/stroop/stroop_state.dart';
+import '../../bloc/settings/settings_bloc.dart';
 
 class StroopScreen extends StatelessWidget {
   const StroopScreen({super.key});
@@ -18,72 +18,6 @@ class StroopScreen extends StatelessWidget {
     'ORANŽOVÁ': Color(0xFFFFAB40),
     'FIALOVÁ': Color(0xFFE040FB),
   };
-
-  // --- FUNKCE: EXPORT DO KOGNITIVNÍHO PROFILU ---
-  Future<void> _saveTestToProfile(double rawReactionTime, double successRate) async {
-    final prefs = await SharedPreferences.getInstance();
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-    if (successRate < 0.8) return; 
-
-    double rawScore = (2.0 - rawReactionTime) * 10.0;
-    if (rawScore < 0) rawScore = 0; 
-
-    List<String> dailyHistory = prefs.getStringList('stroop_daily_history') ?? [];
-    Map<String, double> dailyMaxes = {};
-
-    for (var entry in dailyHistory) {
-      final parts = entry.split('|');
-      if (parts.length == 2) {
-        dailyMaxes[parts[0]] = double.tryParse(parts[1]) ?? 0.0;
-      }
-    }
-
-    if (dailyMaxes.containsKey(today)) {
-      if (rawScore > dailyMaxes[today]!) {
-        dailyMaxes[today] = rawScore;
-      }
-    } else {
-      dailyMaxes[today] = rawScore;
-    }
-
-    var sortedKeys = dailyMaxes.keys.toList()..sort();
-    if (sortedKeys.length > 10) {
-      sortedKeys = sortedKeys.sublist(sortedKeys.length - 10);
-    }
-
-    List<String> newHistoryToSave = [];
-    List<double> valuesForMedian = [];
-
-    for (var key in sortedKeys) {
-      newHistoryToSave.add('$key|${dailyMaxes[key]}');
-      valuesForMedian.add(dailyMaxes[key]!);
-    }
-
-    await prefs.setStringList('stroop_daily_history', newHistoryToSave);
-
-    valuesForMedian.sort();
-    double median = 0.0;
-    int length = valuesForMedian.length;
-    if (length > 0) {
-      if (length % 2 == 1) {
-        median = valuesForMedian[length ~/ 2];
-      } else {
-        median = (valuesForMedian[(length ~/ 2) - 1] + valuesForMedian[length ~/ 2]) / 2;
-      }
-    }
-
-    await prefs.setDouble('metric_inhibition', median);
-    await prefs.setInt('validity_inhibition', length);
-  }
-
-  Future<void> _saveTestToHistory(String historyKey, double newResult) async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String> history = prefs.getStringList(historyKey) ?? [];
-    history.add(newResult.toString());
-    if (history.length > 50) history.removeAt(0); 
-    await prefs.setStringList(historyKey, history);
-  }
 
   Future<bool> _showInterruptDialog(BuildContext context, bool isDark) async {
     return await showDialog<bool>(
@@ -101,7 +35,6 @@ class StroopScreen extends StatelessWidget {
     ) ?? false;
   }
 
-  // --- NOVÁ FUNKCE PRO VYSVĚTLUJÍCÍ DIALOG K MODULU ---
   void _showModuleInfoDialog(BuildContext context, bool isDark, Color accent) {
     showDialog(
       context: context,
@@ -121,7 +54,6 @@ class StroopScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // PŘIDÁNO: .replaceAll('\\n', '\n') u všech překladů, které mohou obsahovat odřádkování z CSV
               _buildDialogSection('module_info_goal'.tr(), 'stroop_info_goal_desc'.tr().replaceAll('\\n', '\n'), Icons.track_changes_rounded, accent, isDark),
               const SizedBox(height: 16),
               _buildDialogSection('module_info_rules'.tr(), 'stroop_info_rules_desc'.tr().replaceAll('\\n', '\n'), Icons.rule_rounded, Colors.orangeAccent, isDark),
@@ -169,33 +101,24 @@ class StroopScreen extends StatelessWidget {
         listenWhen: (previous, current) {
           return previous.phase != StroopPhase.result && current.phase == StroopPhase.result;
         },
-        listener: (context, state) async {
-          if (state.activeGameType == StroopGameType.standard) {
-            final standardHistory = state.history.where((e) => e.gameType == StroopGameType.standard).toList();
-            if (standardHistory.isNotEmpty) {
-              final lastRun = standardHistory.last;
-              double reactionTime = lastRun.medianReactionTime;
-              double successRate = lastRun.score / lastRun.total;
-              
-              await _saveTestToHistory('history_stroop', reactionTime);
-              await _saveTestToProfile(reactionTime, successRate);
-            }
-          }
+        listener: (context, state) {
         },
         builder: (context, state) {
-          // ignore: deprecated_member_use
-          return WillPopScope(
-            onWillPop: () async {
+          return PopScope(
+            canPop: false,
+            onPopInvokedWithResult: (didPop, result) async {
+              if (didPop) return;
               if (state.phase == StroopPhase.menu) {
-                 return true;
+                 Navigator.of(context).pop();
+                 return;
               } else if (state.phase == StroopPhase.result || state.phase == StroopPhase.history) {
                  context.read<StroopBloc>().add(ResetStroop());
-                 return false;
+                 return;
               } else {
                  bool quit = await _showInterruptDialog(context, isDark);
-                 if (!context.mounted) return false;
+                 if (!context.mounted) return;
                  if (quit) context.read<StroopBloc>().add(ResetStroop());
-                 return false;
+                 return;
               }
             },
             child: Scaffold(
@@ -383,43 +306,63 @@ class StroopScreen extends StatelessWidget {
     double percent = state.totalRounds > 0 ? (state.score / state.totalRounds) * 100 : 0;
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.hub_rounded, size: 80, color: accent),
-          const SizedBox(height: 30),
-          Text('global_training_complete'.tr(), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 3, color: isDark ? Colors.white54 : Colors.black54)),
-          const SizedBox(height: 10),
-          Text('${percent.toStringAsFixed(1)}%', style: TextStyle(fontSize: 60, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B))),
-          Text('stroop_result_score'.tr(args: [state.score.toString(), state.totalRounds.toString()]), style: TextStyle(fontSize: 18, color: accent, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 50),
-          _menuBtn(context, 'global_btn_to_menu'.tr(), () => context.read<StroopBloc>().add(ResetStroop()), isDark, isPrimary: true),
-        ],
-      ),
+    return BlocBuilder<SettingsBloc, SettingsState>(
+      builder: (context, settingsState) {
+        final showGamified = settingsState.showGamifiedValues;
+
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.hub_rounded, size: 80, color: accent),
+              const SizedBox(height: 30),
+              Text('global_training_complete'.tr(), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 3, color: isDark ? Colors.white54 : Colors.black54)),
+              const SizedBox(height: 10),
+              Text('${percent.toStringAsFixed(1)}%', style: TextStyle(fontSize: 60, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B))),
+              
+              if (showGamified && state.history.isNotEmpty) ...[
+                Text('global_score_kci'.tr(args: [StroopBloc.calculateKci(state.history.last.medianReactionTime * 1000, state.activeGameType).toString()]), 
+                  style: TextStyle(fontSize: 18, color: accent, fontWeight: FontWeight.bold)),
+              ] else ...[
+                Text('stroop_result_score'.tr(args: [state.score.toString(), state.totalRounds.toString()]), 
+                  style: TextStyle(fontSize: 18, color: accent, fontWeight: FontWeight.bold)),
+              ],
+              
+              const SizedBox(height: 50),
+              _menuBtn(context, 'global_btn_to_menu'.tr(), () => context.read<StroopBloc>().add(ResetStroop()), isDark, isPrimary: true),
+            ],
+          ),
+        );
+      }
     );
   }
 
   Widget _buildHistory(BuildContext context, StroopState state, bool isDark) {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        children: [
-          const SizedBox(height: 20),
-          _buildSingleGraph(context, state, StroopGameType.standard, 'stroop_mode_standard'.tr(), isDark),
-          const SizedBox(height: 30),
-          _buildSingleGraph(context, state, StroopGameType.reverse, 'stroop_mode_reverse'.tr(), isDark),
-          const SizedBox(height: 30),
-          _buildSingleGraph(context, state, StroopGameType.trueFalse, 'stroop_mode_tf'.tr(), isDark),
-          const SizedBox(height: 40),
-          _menuBtn(context, 'global_btn_back'.tr(), () => context.read<StroopBloc>().add(ResetStroop()), isDark),
-          const SizedBox(height: 40),
-        ],
-      ),
+    return BlocBuilder<SettingsBloc, SettingsState>(
+      builder: (context, settingsState) {
+        final showGamified = settingsState.showGamifiedValues;
+
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              _buildSingleGraph(context, state, StroopGameType.standard, 'stroop_mode_standard'.tr(), isDark, showGamified),
+              const SizedBox(height: 30),
+              _buildSingleGraph(context, state, StroopGameType.reverse, 'stroop_mode_reverse'.tr(), isDark, showGamified),
+              const SizedBox(height: 30),
+              _buildSingleGraph(context, state, StroopGameType.trueFalse, 'stroop_mode_tf'.tr(), isDark, showGamified),
+              const SizedBox(height: 40),
+              _menuBtn(context, 'global_btn_back'.tr(), () => context.read<StroopBloc>().add(ResetStroop()), isDark),
+              const SizedBox(height: 40),
+            ],
+          ),
+        );
+      }
     );
   }
 
-  Widget _buildSingleGraph(BuildContext context, StroopState state, StroopGameType type, String title, bool isDark) {
+  Widget _buildSingleGraph(BuildContext context, StroopState state, StroopGameType type, String title, bool isDark, bool showGamifiedValues) {
     final typeHistory = state.history.where((e) => e.gameType == type).toList();
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
 
@@ -433,8 +376,21 @@ class StroopScreen extends StatelessWidget {
       );
     }
     
-    double maxTime = typeHistory.map((e) => e.medianReactionTime).reduce((a, b) => a > b ? a : b);
-    if (maxTime <= 0) maxTime = 1.0; 
+    double maxVal = 0;
+    if (showGamifiedValues) {
+      maxVal = typeHistory.map((e) => StroopBloc.calculateKci(e.medianReactionTime * 1000, type).toDouble()).reduce((a, b) => a > b ? a : b);
+    } else {
+      maxVal = typeHistory.map((e) => e.medianReactionTime).reduce((a, b) => a > b ? a : b);
+    }
+    if (maxVal <= 0) maxVal = 1.0; 
+
+    String medianText;
+    if (showGamifiedValues) {
+      int medianKci = StroopBloc.calculateKci(state.last5Median(type) * 1000, type);
+      medianText = 'KCI: $medianKci';
+    } else {
+      medianText = 'stroop_median'.tr(args: [state.last5Median(type).toStringAsFixed(3)]);
+    }
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -448,10 +404,10 @@ class StroopScreen extends StatelessWidget {
         children: [
           Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white : const Color(0xFF1E293B))),
           const SizedBox(height: 8),
-          Text('stroop_median'.tr(args: [state.last5Median(type).toStringAsFixed(3)]), style: TextStyle(fontSize: 12, color: accent, fontWeight: FontWeight.bold)),
+          Text(medianText, style: TextStyle(fontSize: 12, color: accent, fontWeight: FontWeight.bold)),
           const SizedBox(height: 24),
           SizedBox(
-            height: 160, width: double.infinity,
+            height: 180, width: double.infinity,
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal, physics: const BouncingScrollPhysics(),
               child: Row(
@@ -459,14 +415,22 @@ class StroopScreen extends StatelessWidget {
                 children: typeHistory.map((item) {
                   double successRate = item.total > 0 ? item.score / item.total : 0.0;
                   Color barColor = successRate >= 0.9 ? const Color(0xFF00E676) : (successRate >= 0.7 ? Colors.amber : Colors.redAccent);
-                  double heightFactor = item.medianReactionTime / maxTime;
+                  
+                  double valToDisplay = showGamifiedValues 
+                      ? StroopBloc.calculateKci(item.medianReactionTime * 1000, type).toDouble() 
+                      : item.medianReactionTime;
+                  String textDisplay = showGamifiedValues 
+                      ? valToDisplay.toInt().toString() 
+                      : valToDisplay.toStringAsFixed(2);
+                      
+                  double heightFactor = valToDisplay / maxVal;
 
                   return Padding(
                     padding: const EdgeInsets.only(right: 12.0), 
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Text(item.medianReactionTime.toStringAsFixed(2), style: TextStyle(fontSize: 9, color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.bold)),
+                        Text(textDisplay, style: TextStyle(fontSize: 10, color: isDark ? Colors.white : const Color(0xFF1E293B), fontWeight: FontWeight.bold)),
                         const SizedBox(height: 6),
                         Container(
                           width: 24, height: 120 * heightFactor + 10, 
@@ -476,6 +440,10 @@ class StroopScreen extends StatelessWidget {
                             boxShadow: isDark ? [BoxShadow(color: barColor.withAlpha(50), blurRadius: 10)] : [],
                           ),
                         ),
+                        if (showGamifiedValues) ...[
+                          const SizedBox(height: 6),
+                          Text("${item.medianReactionTime.toStringAsFixed(2)}s", style: TextStyle(fontSize: 9, color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.bold)),
+                        ]
                       ],
                     ),
                   );

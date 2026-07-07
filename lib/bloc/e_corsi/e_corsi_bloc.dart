@@ -80,6 +80,27 @@ class ECorsiBloc extends Bloc<ECorsiEvent, ECorsiState> {
   final Random _random = Random();
   SharedPreferences? _prefs;
   int _roundId = 0; // Ochrana proti překrývání asynchronních smyček
+    // --- JEDINÝ ZDROJ PRAVDY PRO KCI (s modifikátory) ---
+  static int calculateKci(double span, ECorsiMode mode) {
+    if (span <= 0 || span.isNaN || span.isInfinite) return 0;
+    
+    // Zpětný chod (reverse) je kognitivně náročnější
+    double modifier = (mode == ECorsiMode.reverse) ? 1.35 : 1.0;
+    double val = span * modifier;
+
+    double worst = 2.0;     // Bez tréninku
+    double baseline = 4.5;  // Průměrná kapacita (100 KCI)
+    double trained = 8.0;   // Mistr (200 KCI)
+
+    double score = 0;
+    if (val <= baseline) {
+      score = (((val - worst) / (baseline - worst)) * 100.0);
+    } else {
+      score = 100.0 + (((val - baseline) / (trained - baseline)) * 100.0);
+    }
+    
+    return score.round().clamp(0, 250);
+  }
 
   ECorsiBloc() : super(const ECorsiState()) {
     _initPrefs();
@@ -148,20 +169,19 @@ class ECorsiBloc extends Bloc<ECorsiEvent, ECorsiState> {
 
   // OPRAVENO: Metoda je nyní async, abychom mohli sahat do SharedPreferences
     // OPRAVENO: Metoda je nyní async, abychom mohli sahat do SharedPreferences
-  Future<void> _onBlockTapped(BlockTapped event, Emitter<ECorsiState> emit) async {
+      Future<void> _onBlockTapped(BlockTapped event, Emitter<ECorsiState> emit) async {
     if (state.phase != ECorsiPhase.input) return;
 
     SystemSound.play(SystemSoundType.click);
     final newInputs = List<int>.from(state.userInputs)..add(event.blockIndex);
     
-    // Kontrola
     int currentIndex = newInputs.length - 1;
     int expectedBlock = state.mode == ECorsiMode.forward 
         ? state.sequence[currentIndex] 
         : state.sequence[state.sequence.length - 1 - currentIndex];
 
     if (event.blockIndex != expectedBlock) {
-      // CHYBA - NOVÁ HAPTIKA
+      // --- CHYBNÁ ODPOVEĎ (S vizuálnou pauzou 500ms) ---
       final prefs = await SharedPreferences.getInstance();
       bool isHaptic = prefs.getBool('global_is_haptic') ?? true;
       if (isHaptic) {
@@ -169,26 +189,27 @@ class ECorsiBloc extends Bloc<ECorsiEvent, ECorsiState> {
         Vibration.vibrate(duration: hDuration);
       }
       
+      emit(state.copyWith(activeBlockIndex: event.blockIndex));
+
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (state.phase != ECorsiPhase.input) return;
+
       int newLives = state.lives - 1;
       
       if (newLives <= 0) {
-        // 1. Zápis klasické interní historie
         final newItem = ECorsiHistoryItem(DateTime.now(), state.mode, state.currentSpan, state.score);
         final newHistory = List<ECorsiHistoryItem>.from(state.history)..add(newItem);
         _prefs?.setStringList('ecorsi_history', newHistory.map((e) => e.toRawString()).toList());
         
-        // 2. Odeslání do KCI profilu a analytiky (Sjednocení dat)
         if (_prefs != null) {
           final nowStr = DateTime.now().toIso8601String();
-          final scoreVal = state.currentSpan.toDouble();
+          final exportKci = calculateKci(state.currentSpan.toDouble(), state.mode).toDouble();
           
-          // A: Surová historie pro KCI (držíme 50 záznamů)
           List<String> historyKCI = _prefs!.getStringList('history_ecorsi') ?? [];
-          historyKCI.add(scoreVal.toString());
+          historyKCI.add(exportKci.toString());
           if (historyKCI.length > 50) historyKCI.removeAt(0);
           _prefs!.setStringList('history_ecorsi', historyKCI);
           
-          // B: Denní agregát pro graf (bere maximum z daného dne)
           final today = nowStr.substring(0, 10);
           List<String> dailyRaw = _prefs!.getStringList('ecorsi_daily_history') ?? [];
           Map<String, double> dailyMap = {};
@@ -199,26 +220,24 @@ class ECorsiBloc extends Bloc<ECorsiEvent, ECorsiState> {
           }
           
           if (dailyMap.containsKey(today)) {
-            if (scoreVal > dailyMap[today]!) dailyMap[today] = scoreVal;
+            if (exportKci > dailyMap[today]!) dailyMap[today] = exportKci;
           } else {
-            dailyMap[today] = scoreVal;
+            dailyMap[today] = exportKci;
           }
           
           var sortedKeys = dailyMap.keys.toList()..sort();
           if (sortedKeys.length > 10) sortedKeys = sortedKeys.sublist(sortedKeys.length - 10);
           
           _prefs!.setStringList('ecorsi_daily_history', sortedKeys.map((k) => '$k|${dailyMap[k]}').toList());
-          
-          // C: Validita
           _prefs!.setInt('validity_visuospatial', sortedKeys.length);
         }
 
-        emit(state.copyWith(phase: ECorsiPhase.result, history: newHistory));
+        emit(state.copyWith(phase: ECorsiPhase.result, history: newHistory, activeBlockIndex: -1));
       } else {
-        emit(state.copyWith(phase: ECorsiPhase.failure, lives: newLives));
+        emit(state.copyWith(phase: ECorsiPhase.failure, lives: newLives, activeBlockIndex: -1));
       }
     } else {
-      // SPRÁVNĚ
+      // --- SPRÁVNA ODPOVEĎ (Obnovená vetva) ---
       emit(state.copyWith(userInputs: newInputs, score: state.score + 1));
       
       if (newInputs.length == state.sequence.length) {
@@ -226,4 +245,6 @@ class ECorsiBloc extends Bloc<ECorsiEvent, ECorsiState> {
       }
     }
   }
+
 }
+

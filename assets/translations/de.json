@@ -345,7 +345,14 @@
   "onboarding_gamification_desc": "Obwohl die Trainingsmodule der wissenschaftlichen Methodik entsprechen, bieten wir ein gamifiziertes Bewertungssystem an, um Ihnen eine bessere Vorstellung von Ihren Fortschritten zu geben. Ein durchschnittlicher Anfänger erreicht eine Punktzahl von 100, das theoretische menschliche Maximum liegt bei etwa 200. Diese Punktzahl wird durch keine standardisierte wissenschaftliche Methode berechnet, sondern ist nur eine grobe Schätzung zur Motivation. Möchten Sie diese gamifizierten Werte anzeigen?",
   "onboard_btn_finish": "ABSCHLIESSEN",
   "global_progress": "Gesamtfortschritt",
-  "global_score_kci": "Ergebnis: {} KCI"
+  "global_score_kci": "Ergebnis: {} KCI",
+  "palace_settings_items_per_loc": "Gegenstände pro Ort",
+  "palace_settings_rand_locs": "Zufällige Reihenfolge der Orte",
+  "palace_settings_rand_items": "Zufällige Reihenfolge der Gegenstände",
+  "palace_diff_standard": "STANDARD",
+  "palace_diff_expert": "EXPERT",
+  "palace_diff_expert_plus": "EXPERT+"
+
 
 
 

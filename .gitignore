@@ -43,8 +43,29 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
 # Skrytí lokálních konfiguračních souborů s klíči
 *.env
 secrets.json
 config_local.json
 
+# ==============================================================================
+# OCHRANA CITLIVÝCH DAT A KLÍČŮ (Přidáno pro Kognisinn)
+# ==============================================================================
+
+# Firebase a bezpečnostní klíče
+android/app/google-services.json
+firebase_options.dart
+lib/env.dart
+
+# Android Keystore (Podepisovací klíče pro distribuci na Google Play)
+*.jks
+*.keystore
+android/key.properties
+
+# Zkompilované instalační soubory (Nenahrávat binární soubory do historie Gitu!)
+*.exe
+*.apk
+*.aab
+*.msix
+*.zip

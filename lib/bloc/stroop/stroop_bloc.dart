@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vibration/vibration.dart';
+import 'package:kognisinn/env.dart';
 
 import 'stroop_event.dart';
 import 'stroop_state.dart';
@@ -75,10 +78,19 @@ class StroopBloc extends Bloc<StroopEvent, StroopState> {
     bool isCorrect = event.answer == state.correctAnswer;
 
     if (!isCorrect) {
-      bool isHaptic = _prefs?.getBool('global_is_haptic') ?? true;
-      if (isHaptic) {
-        int hDuration = _prefs?.getInt('global_haptic_duration') ?? 500;
-        Vibration.vibrate(duration: hDuration);
+      // --- OPRAVA HAPTIKY PRO WINDOWS ---
+      try {
+        if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+          if (Env.useHaptics) {
+            bool isHaptic = _prefs?.getBool('global_is_haptic') ?? true;
+            if (isHaptic) {
+              int hDuration = _prefs?.getInt('global_haptic_duration') ?? 500;
+              Vibration.vibrate(duration: hDuration);
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint("Vibrace selhala: $e");
       }
     }
 
@@ -86,7 +98,6 @@ class StroopBloc extends Bloc<StroopEvent, StroopState> {
     List<int> newTimes = List.from(state.currentReactionTimesMs)..add(elapsed);
 
     if (state.currentRound >= state.totalRounds) {
-      
       double mean = newTimes.reduce((a, b) => a + b) / newTimes.length;
       double variance = newTimes.map((t) => pow(t - mean, 2)).reduce((a, b) => a + b) / newTimes.length;
       double sd = sqrt(variance);
@@ -102,26 +113,20 @@ class StroopBloc extends Bloc<StroopEvent, StroopState> {
       
       double sessionRobustMedian = robustMedianMs / 1000.0;
 
-      // 1. Uložení interní historie v čistých datech
       final newItem = StroopHistoryItem(DateTime.now(), newScore, state.totalRounds, sessionRobustMedian, state.activeGameType);
       final newHistory = List<StroopHistoryItem>.from(state.history)..add(newItem);
       _prefs?.setStringList('stroop_history', newHistory.map((e) => e.toRawString()).toList());
       
-      // 2. Odeslání do KCI profilu (Všechny módy, úspěšnost >= 70 %)
       double successRate = state.totalRounds > 0 ? (newScore / state.totalRounds) : 0;
       if (_prefs != null && successRate >= 0.70) {
         final nowStr = DateTime.now().toIso8601String();
-        
-        // VÝPOČET KCI V MODULU
         final exportKci = calculateKci(robustMedianMs, state.activeGameType).toDouble(); 
         
-        // A: Historie pro Profil
         List<String> historyKCI = _prefs!.getStringList('history_stroop') ?? [];
         historyKCI.add(exportKci.toString());
         if (historyKCI.length > 50) historyKCI.removeAt(0);
         _prefs!.setStringList('history_stroop', historyKCI);
         
-        // B: Denní agregát (ukládá MAXIMUM KCI)
         final today = nowStr.substring(0, 10);
         List<String> dailyRaw = _prefs!.getStringList('stroop_daily_history') ?? [];
         Map<String, double> dailyMap = {};

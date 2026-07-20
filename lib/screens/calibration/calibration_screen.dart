@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,12 +10,31 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vibration/vibration.dart';
 
-
+import 'package:kognisinn/env.dart'; 
 import '../../bloc/calibration/calibration_bloc.dart';
 import '../../bloc/calibration/calibration_event.dart';
 import '../../bloc/calibration/calibration_state.dart';
 import '../main_menu_screen.dart'; 
 import '../cognitive_profile_screen.dart'; 
+
+// ============================================================================
+// BEZPEČNÁ HAPTIKA PRO WINDOWS & WEB
+// ============================================================================
+Future<void> _safeVibrate() async {
+  if (kIsWeb) return;
+  if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) return;
+  
+  try {
+    if (Env.useHaptics) {
+      bool? hasVib = await Vibration.hasVibrator();
+      if (hasVib == true) {
+        Vibration.vibrate(duration: 400);
+      }
+    }
+  } catch (_) {
+    // Tiše ignorujeme výjimky
+  }
+}
 
 // ============================================================================
 // SDÍLENÉ WIDGETY
@@ -59,44 +80,50 @@ Widget _buildInstructionView({
   required VoidCallback onStart,
   Widget? extraContent,
 }) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 32.0),
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: accent.withAlpha(20),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, size: 64, color: accent),
+  return SingleChildScrollView(
+    physics: const BouncingScrollPhysics(),
+    child: SizedBox(
+      width: double.infinity, // Ukotvení posuvníku vpravo
+      child: Padding(
+        padding: const EdgeInsets.only(top: 20.0, bottom: 80.0, left: 32.0, right: 32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: accent.withAlpha(20),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 64, color: accent),
+            ),
+            const SizedBox(height: 32),
+            Text(
+              title, 
+              textAlign: TextAlign.center, 
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B), letterSpacing: 2)
+            ),
+            const SizedBox(height: 16),
+            Text(
+              description, 
+              textAlign: TextAlign.center, 
+              style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.black54, height: 1.5)
+            ),
+            
+            if (extraContent != null) ...[
+              const SizedBox(height: 32),
+              extraContent,
+            ],
+            
+            const SizedBox(height: 48),
+            _buildSharedBtn('calib_btn_start'.tr(), onStart, isDark, accent, isPrimary: true, icon: Icons.play_arrow_rounded),
+          ],
         ),
-        const SizedBox(height: 32),
-        Text(
-          title, 
-          textAlign: TextAlign.center, 
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B), letterSpacing: 2)
-        ),
-        const SizedBox(height: 16),
-        Text(
-          description, 
-          textAlign: TextAlign.center, 
-          style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.black54, height: 1.5)
-        ),
-        
-        if (extraContent != null) ...[
-          const SizedBox(height: 32),
-          extraContent,
-        ],
-        
-        const SizedBox(height: 48),
-        _buildSharedBtn('calib_btn_start'.tr(), onStart, isDark, accent, isPrimary: true, icon: Icons.play_arrow_rounded),
-      ],
+      ),
     ),
   );
 }
-
 
 // ============================================================================
 // HLAVNÍ OBRAZOVKA
@@ -131,11 +158,10 @@ class CalibrationScreen extends StatelessWidget {
       create: (context) => CalibrationBloc(),
       child: BlocBuilder<CalibrationBloc, CalibrationState>(
         builder: (context, state) {
-        
           return PopScope(
-            canPop: false, // Zabrání okamžitému zavření obrazovky při stisku zpět
+            canPop: false, 
             onPopInvokedWithResult: (bool didPop, Object? result) async {
-              if (didPop) return; // Pokud už systém krok zpět provedl, nepokračujeme
+              if (didPop) return; 
 
               if (state.phase == CalibrationPhase.result) return;
               
@@ -163,7 +189,6 @@ class CalibrationScreen extends StatelessWidget {
               ),
             ),
           );
-
         },
       ),
     );
@@ -188,7 +213,7 @@ class CalibrationScreen extends StatelessWidget {
     );
   }
 
-    Widget _buildPhase(BuildContext context, CalibrationState state, bool isDark) {
+  Widget _buildPhase(BuildContext context, CalibrationState state, bool isDark) {
     switch (state.phase) {
       case CalibrationPhase.intro: return _IntroPhase(isDark: isDark);
       case CalibrationPhase.stroop: return _StroopMicroTest(isDark: isDark);
@@ -196,13 +221,10 @@ class CalibrationScreen extends StatelessWidget {
       case CalibrationPhase.eCorsi: return _ECorsiMicroTest(isDark: isDark);
       case CalibrationPhase.memoryPalace: return _PalaceMicroTest(isDark: isDark);
       case CalibrationPhase.dnb: return _DNBMicroTest(isDark: isDark);
-      // OPRAVA: Předáváme state do výsledkové obrazovky
       case CalibrationPhase.result: return _ResultPhase(isDark: isDark, state: state); 
     }
   }
-
 }
-
 
 // ============================================================================
 // INTRO & RESULT PHASE
@@ -214,112 +236,115 @@ class _IntroPhase extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.psychology_rounded, size: 80, color: accent),
-          const SizedBox(height: 30),
-          Text('calib_intro_title'.tr(), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B), letterSpacing: 2)),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Text('calib_intro_desc'.tr(), textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.black54, height: 1.5)),
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: SizedBox(
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 40.0, bottom: 80.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.psychology_rounded, size: 80, color: accent),
+              const SizedBox(height: 30),
+              Text('calib_intro_title'.tr(), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B), letterSpacing: 2)),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: Text('calib_intro_desc'.tr(), textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.black54, height: 1.5)),
+              ),
+              const SizedBox(height: 50),
+              _buildSharedBtn('calib_btn_next'.tr(), () => context.read<CalibrationBloc>().add(StartCalibration()), isDark, accent, isPrimary: true, icon: Icons.play_arrow_rounded),
+            ],
           ),
-          const SizedBox(height: 50),
-          _buildSharedBtn('calib_btn_next'.tr(), () => context.read<CalibrationBloc>().add(StartCalibration()), isDark, accent, isPrimary: true, icon: Icons.play_arrow_rounded),
-        ],
+        ),
       ),
     );
   }
 }
 
-// ============================================================================
-// RESULT PHASE
-// ============================================================================
-
-
 class _ResultPhase extends StatelessWidget {
   final bool isDark;
   final CalibrationState state;
   
-  // OPRAVA 1: Odstraněno super.key, jelikož není potřeba u privátní třídy
   const _ResultPhase({required this.isDark, required this.state});
   
   @override
   Widget build(BuildContext context) {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
     
-    // OPRAVA 2: Odstraněno nepotřebné ?? 0.0 (proměnná dnbSuccessRate není nullable)
     double rate = state.dnbSuccessRate;
     int percentage = (rate * 100).round();
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.radar_rounded, size: 80, color: accent),
-          const SizedBox(height: 30),
-          Text('calib_done_title'.tr(), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B), letterSpacing: 2)),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Text('calib_done_desc'.tr(), textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.black54, height: 1.5)),
-          ),
-          const SizedBox(height: 40),
-          
-          // --- BLOK PRO ZOBRAZENÍ ÚSPĚŠNOSTI ---
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white.withAlpha(10) : Colors.black.withAlpha(5),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: accent.withAlpha(50), width: 1.5),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  'ÚSPĚŠNOST N-BACK', 
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: isDark ? Colors.white54 : Colors.black54, letterSpacing: 2)
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: SizedBox(
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 40.0, bottom: 80.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.radar_rounded, size: 80, color: accent),
+              const SizedBox(height: 30),
+              Text('calib_done_title'.tr(), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B), letterSpacing: 2)),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: Text('calib_done_desc'.tr(), textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.black54, height: 1.5)),
+              ),
+              const SizedBox(height: 40),
+              
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withAlpha(10) : Colors.black.withAlpha(5),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: accent.withAlpha(50), width: 1.5),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '$percentage %', 
-                  style: TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: accent)
+                child: Column(
+                  children: [
+                    Text(
+                      'ÚSPĚŠNOST N-BACK', 
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: isDark ? Colors.white54 : Colors.black54, letterSpacing: 2)
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$percentage %', 
+                      style: TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: accent)
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              
+              const SizedBox(height: 50),
+              
+              _buildSharedBtn('ZOBRAZIT KOGNITIVNÍ PROFIL', () async {
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => Center(child: CircularProgressIndicator(color: accent)),
+                );
+                
+                final navigator = Navigator.of(context);
+                context.read<CalibrationBloc>().add(FinishCalibration());
+                await Future.delayed(const Duration(milliseconds: 250));
+                
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('global_is_calibrated', true);
+                
+                navigator.pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const CognitiveProfileScreen()), 
+                  (route) => false
+                );
+              }, isDark, accent, isPrimary: true),
+            ],
           ),
-          // ---------------------------------------------
-          
-          const SizedBox(height: 50),
-          
-          _buildSharedBtn('ZOBRAZIT KOGNITIVNÍ PROFIL', () async {
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (_) => Center(child: CircularProgressIndicator(color: accent)),
-            );
-            
-            final navigator = Navigator.of(context);
-            context.read<CalibrationBloc>().add(FinishCalibration());
-            await Future.delayed(const Duration(milliseconds: 250));
-            
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setBool('global_is_calibrated', true);
-            
-            navigator.pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const CognitiveProfileScreen()), 
-              (route) => false
-            );
-          }, isDark, accent, isPrimary: true),
-        ],
+        ),
       ),
     );
   }
 }
-
-
 
 // ============================================================================
 // STROOP
@@ -357,12 +382,11 @@ class _StroopMicroTestState extends State<_StroopMicroTest> {
     if (mounted) setState(() {});
   }
 
-    void _handleTap(Color tappedColor) async {
+  void _handleTap(Color tappedColor) async {
     if (_isLocked) return;
     
-    // OPRAVA: Haptika při kliknutí na špatnou barvu
     if (tappedColor != _currentColor) {
-      Vibration.vibrate(duration: 400);
+      _safeVibrate();
     }
 
     if (_shownTime != null) {
@@ -382,7 +406,6 @@ class _StroopMicroTestState extends State<_StroopMicroTest> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final Color accent = widget.isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
@@ -401,33 +424,41 @@ class _StroopMicroTestState extends State<_StroopMicroTest> {
       );
     }
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Spacer(),
-        Text(_currentKey.tr(), style: TextStyle(fontSize: 60, fontWeight: FontWeight.w900, color: _currentColor)),
-        const Spacer(),
-        SizedBox(
-          width: 280,
-          child: Wrap(
-            spacing: 20, runSpacing: 20, alignment: WrapAlignment.center,
-            children: List.generate(_colors.length, (i) => GestureDetector(
-              onTap: () => _handleTap(_colors[i]),
-              child: Container(
-                width: 120, height: 100, 
-                decoration: BoxDecoration(color: _colors[i].withAlpha(200), borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: _colors[i].withAlpha(100), blurRadius: 15)]),
-                alignment: Alignment.center,
-                child: Text(_wordKeys[i].tr(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: SizedBox(
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 40.0, bottom: 80.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 60),
+              Text(_currentKey.tr(), style: TextStyle(fontSize: 60, fontWeight: FontWeight.w900, color: _currentColor)),
+              const SizedBox(height: 80),
+              SizedBox(
+                width: 280,
+                child: Wrap(
+                  spacing: 20, runSpacing: 20, alignment: WrapAlignment.center,
+                  children: List.generate(_colors.length, (i) => GestureDetector(
+                    onTap: () => _handleTap(_colors[i]),
+                    child: Container(
+                      width: 120, height: 100, 
+                      decoration: BoxDecoration(color: _colors[i].withAlpha(200), borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: _colors[i].withAlpha(100), blurRadius: 15)]),
+                      alignment: Alignment.center,
+                      child: Text(_wordKeys[i].tr(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  )),
+                ),
               ),
-            )),
+              const SizedBox(height: 40),
+            ],
           ),
         ),
-        const SizedBox(height: 60),
-      ],
+      ),
     );
   }
 }
-
 
 // ============================================================================
 // DIGIT SPAN
@@ -463,9 +494,9 @@ class _DigitSpanMicroTestState extends State<_DigitSpanMicroTest> {
     String lang = context.locale.languageCode;
 
     try {
-      await _tts.awaitSpeakCompletion(true);
       await _tts.setLanguage(lang == 'en' ? "en-US" : (lang == 'de' ? "de-DE" : "cs-CZ"));
       await _tts.setSpeechRate(0.5);
+      await _tts.awaitSpeakCompletion(true); // KLÍČOVÁ OPRAVA PRO WINDOWS
     } catch (e) { 
       debugPrint("TTS Error: $e"); 
     }
@@ -492,7 +523,8 @@ class _DigitSpanMicroTestState extends State<_DigitSpanMicroTest> {
     _isInputPhase = false;
     int tick = 0;
     
-    void playNext() {
+    // Změněno na async, aby šlo garantovat pořadí čtení
+    void playNext() async { 
       if (!mounted) return;
       if (tick >= _seq.length) {
         setState(() { _isInputPhase = true; _displayChar = ''; });
@@ -500,21 +532,23 @@ class _DigitSpanMicroTestState extends State<_DigitSpanMicroTest> {
         String digit = _seq[tick].toString();
         setState(() => _displayChar = digit);
 
-        _tts.speak(digit); 
+        // Aplikace nyní exaktně počká, dokud Windows engine číslo nedořekne
+        await _tts.speak(digit); 
 
-        Future.delayed(const Duration(milliseconds: 800), () {
+        Future.delayed(const Duration(milliseconds: 600), () {
           if (mounted) setState(() => _displayChar = '');
         });
         
         tick++;
-        _timer = Timer(const Duration(milliseconds: 1200), playNext);
+        // Časovač snížen, protože await speak už sám o sobě sežere cca 500ms
+        _timer = Timer(const Duration(milliseconds: 800), playNext);
       }
     }
     
     playNext();
   }
 
-    void _handleInput(int num) async {
+  void _handleInput(int num) async {
     if (!_isInputPhase) return;
     setState(() => _input.add(num));
     
@@ -532,8 +566,7 @@ class _DigitSpanMicroTestState extends State<_DigitSpanMicroTest> {
         _span++;
         _startSequence();
       } else {
-        
-        Vibration.vibrate(duration: 400);
+        _safeVibrate();
         
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt('calib_digit_span', _span - 1);
@@ -541,7 +574,6 @@ class _DigitSpanMicroTestState extends State<_DigitSpanMicroTest> {
       }
     }
   }
-
 
   void _handleBackspace() {
     if (!_isInputPhase || _input.isEmpty) return;
@@ -581,42 +613,51 @@ class _DigitSpanMicroTestState extends State<_DigitSpanMicroTest> {
         onStart: () async {
           setState(() => _showInstructions = false);
           
-                String readyText = context.locale.languageCode == 'en' 
+          String readyText = context.locale.languageCode == 'en' 
               ? "Ready" 
               : (context.locale.languageCode == 'de' ? "Bereit" : "Pozor");
               
-          await _tts.speak(readyText);
+          await _tts.speak(readyText); // Počká na dořeknutí úvodního slova
           
-          
-          Future.delayed(const Duration(milliseconds: 1500), () {
+          Future.delayed(const Duration(milliseconds: 500), () {
             _startSequence();
           });
         },
       );
     }
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Spacer(),
-        
-        if (!_isInputPhase) Text(_displayChar, style: TextStyle(fontSize: 120, fontWeight: FontWeight.w900, color: widget.isDark ? Colors.white : Colors.black)),
-        if (_isInputPhase) Text(_input.join(' '), style: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: accent, letterSpacing: 10)),
-        
-        const Spacer(),
-        if (_isInputPhase)
-          SizedBox(
-            width: 300,
-            child: Wrap(
-              spacing: 12, runSpacing: 12, alignment: WrapAlignment.center,
-              children: [
-                ...List.generate(9, (i) => _buildKeypadBtn('${i + 1}', () => _handleInput(i + 1), accent)),
-                _buildKeypadBtn('⌫', _handleBackspace, accent, isAccent: true),
-              ],
-            ),
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: SizedBox(
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 40.0, bottom: 80.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 60),
+              
+              if (!_isInputPhase) Text(_displayChar, style: TextStyle(fontSize: 120, fontWeight: FontWeight.w900, color: widget.isDark ? Colors.white : Colors.black)),
+              if (_isInputPhase) Text(_input.join(' '), style: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: accent, letterSpacing: 10)),
+              
+              const SizedBox(height: 80),
+              
+              if (_isInputPhase)
+                SizedBox(
+                  width: 300,
+                  child: Wrap(
+                    spacing: 12, runSpacing: 12, alignment: WrapAlignment.center,
+                    children: [
+                      ...List.generate(9, (i) => _buildKeypadBtn('${i + 1}', () => _handleInput(i + 1), accent)),
+                      _buildKeypadBtn('⌫', _handleBackspace, accent, isAccent: true),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 40),
+            ],
           ),
-        const SizedBox(height: 40),
-      ],
+        ),
+      ),
     );
   }
 }
@@ -683,7 +724,7 @@ class _ECorsiMicroTestState extends State<_ECorsiMicroTest> {
     });
   }
 
-    void _handleTap(int index) async {
+  void _handleTap(int index) async {
     if (!_isInputPhase) return;
     setState(() { _activeBlock = index; _input.add(index); });
     
@@ -694,8 +735,7 @@ class _ECorsiMicroTestState extends State<_ECorsiMicroTest> {
     if (_input.last != _seq[_input.length - 1]) {
       setState(() => _isInputPhase = false); 
       
-      
-      Vibration.vibrate(duration: 400);
+      _safeVibrate();
       
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('calib_ecorsi', _span - 1);
@@ -707,7 +747,6 @@ class _ECorsiMicroTestState extends State<_ECorsiMicroTest> {
       Future.delayed(const Duration(milliseconds: 500), _startSequence);
     }
   }
-
 
   @override
   void dispose() { _timer?.cancel(); super.dispose(); }
@@ -730,35 +769,55 @@ class _ECorsiMicroTestState extends State<_ECorsiMicroTest> {
       );
     }
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Spacer(),
-        AspectRatio(
-          aspectRatio: 1.0,
-          child: Container(
-            margin: const EdgeInsets.all(24),
-            decoration: BoxDecoration(color: widget.isDark ? Colors.white.withAlpha(5) : accent.withAlpha(10), borderRadius: BorderRadius.circular(24)),
-            child: Stack(
-              children: List.generate(9, (index) {
-                bool isActive = _activeBlock == index;
-                return Align(
-                  alignment: _pos[index],
-                  child: GestureDetector(
-                    onTap: () => _handleTap(index),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      width: 60, height: 60,
-                      decoration: BoxDecoration(color: isActive ? accent : (widget.isDark ? Colors.white12 : Colors.black12), borderRadius: BorderRadius.circular(16)),
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: SizedBox(
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 40.0, bottom: 80.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 40),
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400, maxHeight: 400),
+                  child: AspectRatio(
+                    aspectRatio: 1.0,
+                    child: Container(
+                      margin: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: widget.isDark ? Colors.white.withAlpha(5) : accent.withAlpha(10), 
+                        borderRadius: BorderRadius.circular(24)
+                      ),
+                      child: Stack(
+                        children: List.generate(9, (index) {
+                          bool isActive = _activeBlock == index;
+                          return Align(
+                            alignment: _pos[index],
+                            child: GestureDetector(
+                              onTap: () => _handleTap(index),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                width: 60, height: 60,
+                                decoration: BoxDecoration(
+                                  color: isActive ? accent : (widget.isDark ? Colors.white12 : Colors.black12), 
+                                  borderRadius: BorderRadius.circular(16)
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
                     ),
                   ),
-                );
-              }),
-            ),
+                ),
+              ),
+              const SizedBox(height: 40),
+            ],
           ),
         ),
-        const Spacer(),
-      ],
+      ),
     );
   }
 }
@@ -813,14 +872,13 @@ class _PalaceMicroTestState extends State<_PalaceMicroTest> {
     });
   }
 
-    void _handleAnswer(String target) async {
+  void _handleAnswer(String target) async {
     if (_isLocked) return;
     
     if (target == _recallOrder[_idx]['target']) {
       _score++;
     } else {
-    
-      Vibration.vibrate(duration: 400);
+      _safeVibrate();
     }
     
     setState(() { _idx++; });
@@ -834,7 +892,6 @@ class _PalaceMicroTestState extends State<_PalaceMicroTest> {
       if (mounted) context.read<CalibrationBloc>().add(SubmitMemoryPalaceResult(_score));
     }
   }
-
 
   @override
   void dispose() { _timer?.cancel(); super.dispose(); }
@@ -857,53 +914,61 @@ class _PalaceMicroTestState extends State<_PalaceMicroTest> {
       );
     }
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Spacer(),
-        
-        if (!_isRecall && _idx >= 0 && _idx < _encodingOrder.length) ...[
-          Text('calib_palace_learn'.tr(), style: TextStyle(fontSize: 18, color: widget.isDark ? Colors.white54 : Colors.black54)),
-          const SizedBox(height: 30),
-          Row(
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: SizedBox(
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 40.0, bottom: 80.0),
+          child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(_encodingOrder[_idx]['cue']!, style: const TextStyle(fontSize: 80)),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Icon(Icons.link_rounded, color: accent, size: 40),
-              ),
-              Text(_encodingOrder[_idx]['target']!, style: const TextStyle(fontSize: 80)),
+              const SizedBox(height: 60),
+              
+              if (!_isRecall && _idx >= 0 && _idx < _encodingOrder.length) ...[
+                Text('calib_palace_learn'.tr(), style: TextStyle(fontSize: 18, color: widget.isDark ? Colors.white54 : Colors.black54)),
+                const SizedBox(height: 40),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(_encodingOrder[_idx]['cue']!, style: const TextStyle(fontSize: 80)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Icon(Icons.link_rounded, color: accent, size: 40),
+                    ),
+                    Text(_encodingOrder[_idx]['target']!, style: const TextStyle(fontSize: 80)),
+                  ],
+                ),
+              ] 
+              else if (_isRecall && _idx < _recallOrder.length) ...[
+                Text('calib_palace_test'.tr(), style: TextStyle(fontSize: 18, color: widget.isDark ? Colors.white : Colors.black, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 40),
+                Text(_recallOrder[_idx]['cue']!, style: const TextStyle(fontSize: 80)),
+                const SizedBox(height: 60),
+                Wrap(
+                  spacing: 16, runSpacing: 16, alignment: WrapAlignment.center,
+                  children: (_allTargets.toList()..shuffle()).map((t) => GestureDetector(
+                    onTap: () => _handleAnswer(t),
+                    child: Container(
+                      width: 80, height: 80, alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: widget.isDark ? const Color(0xFF23253A) : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: accent.withAlpha(40), width: 2),
+                      ),
+                      child: Text(t, style: const TextStyle(fontSize: 40)),
+                    ),
+                  )).toList(),
+                ),
+              ],
+              const SizedBox(height: 40),
             ],
           ),
-        ] 
-        else if (_isRecall && _idx < _recallOrder.length) ...[
-          Text('calib_palace_test'.tr(), style: TextStyle(fontSize: 18, color: widget.isDark ? Colors.white : Colors.black, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 30),
-          Text(_recallOrder[_idx]['cue']!, style: const TextStyle(fontSize: 80)),
-          const SizedBox(height: 50),
-          Wrap(
-            spacing: 16, runSpacing: 16, alignment: WrapAlignment.center,
-            children: (_allTargets.toList()..shuffle()).map((t) => GestureDetector(
-              onTap: () => _handleAnswer(t),
-              child: Container(
-                width: 80, height: 80, alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: widget.isDark ? const Color(0xFF23253A) : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: accent.withAlpha(40), width: 2),
-                ),
-                child: Text(t, style: const TextStyle(fontSize: 40)),
-              ),
-            )).toList(),
-          ),
-        ],
-        const Spacer(),
-      ],
+        ),
+      ),
     );
   }
 }
-
 
 // ============================================================================
 // DUAL N-BACK
@@ -949,9 +1014,9 @@ class _DNBMicroTestState extends State<_DNBMicroTest> {
     String lang = context.locale.languageCode;
 
     try {
-      await _tts.awaitSpeakCompletion(true);
       await _tts.setLanguage(lang == 'en' ? "en-US" : (lang == 'de' ? "de-DE" : "cs-CZ"));
       await _tts.setSpeechRate(0.5);
+      await _tts.awaitSpeakCompletion(true); // KLÍČOVÁ OPRAVA PRO WINDOWS
     } catch (e) { 
       debugPrint("TTS Error: $e"); 
     }
@@ -959,7 +1024,7 @@ class _DNBMicroTestState extends State<_DNBMicroTest> {
     if (mounted) { setState(() => _isReady = true); } 
   }
 
-  void _nextRound() {
+  void _nextRound() async {
     if (!mounted) return;
 
     bool showPosMiss = false;
@@ -972,7 +1037,6 @@ class _DNBMicroTestState extends State<_DNBMicroTest> {
       if (wasPosMatch == _hasClickedPosThisRound) _correctDecisions++;
       if (wasAudMatch == _hasClickedAudThisRound) _correctDecisions++;
 
-      // OPRAVA: Detekce promarněného podnětu (Miss)
       if (wasPosMatch && !_hasClickedPosThisRound) showPosMiss = true;
       if (wasAudMatch && !_hasClickedAudThisRound) showAudMiss = true;
     }
@@ -988,10 +1052,8 @@ class _DNBMicroTestState extends State<_DNBMicroTest> {
     _posBtnState = showPosMiss ? 2 : 0;
     _audBtnState = showAudMiss ? 2 : 0;
 
-
     if (showPosMiss || showAudMiss) {
-      
-      Vibration.vibrate(duration: 400); 
+      _safeVibrate(); 
       
       Future.delayed(const Duration(milliseconds: 400), () {
         if (mounted) {
@@ -1002,7 +1064,6 @@ class _DNBMicroTestState extends State<_DNBMicroTest> {
         }
       });
     }
-
 
     int p; 
     int a;
@@ -1031,18 +1092,18 @@ class _DNBMicroTestState extends State<_DNBMicroTest> {
     
     if (mounted) setState(() => _activePos = p);
     
-    _tts.speak(_letters[a]); 
+    _tts.speak("${_letters[a]}.");
 
     _round++;
     _timer = Timer(const Duration(milliseconds: 2500), _nextRound);
   }
 
-    void _handlePosClick() {
+  void _handlePosClick() {
     if (_round <= 2 || _hasClickedPosThisRound) return;
     _hasClickedPosThisRound = true;
     bool isMatch = _posHist.last == _posHist[_posHist.length - 3];
     
-    if (!isMatch) Vibration.vibrate(duration: 400); 
+    if (!isMatch) _safeVibrate(); 
     setState(() { _posBtnState = isMatch ? 1 : 2; });
   }
 
@@ -1051,10 +1112,9 @@ class _DNBMicroTestState extends State<_DNBMicroTest> {
     _hasClickedAudThisRound = true;
     bool isMatch = _audHist.last == _audHist[_audHist.length - 3];
     
-    if (!isMatch) Vibration.vibrate(duration: 400); 
+    if (!isMatch) _safeVibrate(); 
     setState(() { _audBtnState = isMatch ? 1 : 2; });
   }
-
 
   void _finishTest() async {
     int totalValidRounds = _maxRounds - 2;
@@ -1100,9 +1160,10 @@ class _DNBMicroTestState extends State<_DNBMicroTest> {
           String readyText = context.locale.languageCode == 'en' 
               ? "Ready" 
               : (context.locale.languageCode == 'de' ? "Bereit" : "Připravit");
-          await _tts.speak(readyText);
+              
+          await _tts.speak(readyText); // Až nyní aplikace skutečně počká na dořeknutí!
           
-          Future.delayed(const Duration(milliseconds: 1200), () {
+          Future.delayed(const Duration(milliseconds: 500), () {
             _nextRound();
           });
         },
@@ -1154,34 +1215,41 @@ class _DNBMicroTestState extends State<_DNBMicroTest> {
       );
     }
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Spacer(),
-        Container(
-          width: 280, height: 280, padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: widget.isDark ? Colors.white.withAlpha(5) : accent.withAlpha(10), borderRadius: BorderRadius.circular(20), border: Border.all(color: widget.isDark ? Colors.white12 : accent.withAlpha(20))),
-          child: GridView.builder(
-            physics: const NeverScrollableScrollPhysics(), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 8, mainAxisSpacing: 8), itemCount: 9,
-            itemBuilder: (context, index) {
-              bool isActive = _activePos == index;
-              return AnimatedContainer(duration: const Duration(milliseconds: 150), decoration: BoxDecoration(color: isActive ? accent : (widget.isDark ? Colors.white.withAlpha(10) : Colors.black.withAlpha(5)), borderRadius: BorderRadius.circular(12)));
-            },
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: SizedBox(
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 40.0, bottom: 80.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 40),
+              Container(
+                width: 280, height: 280, padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: widget.isDark ? Colors.white.withAlpha(5) : accent.withAlpha(10), borderRadius: BorderRadius.circular(20), border: Border.all(color: widget.isDark ? Colors.white12 : accent.withAlpha(20))),
+                child: GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 8, mainAxisSpacing: 8), itemCount: 9,
+                  itemBuilder: (context, index) {
+                    bool isActive = _activePos == index;
+                    return AnimatedContainer(duration: const Duration(milliseconds: 150), decoration: BoxDecoration(color: isActive ? accent : (widget.isDark ? Colors.white.withAlpha(10) : Colors.black.withAlpha(5)), borderRadius: BorderRadius.circular(12)));
+                  },
+                ),
+              ),
+              const SizedBox(height: 60),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildSharedBtn('dnb_btn_position'.tr(), _handlePosClick, widget.isDark, _getBtnColor(_posBtnState, accent), bgColor: _getBtnBgColor(_posBtnState), width: 140),
+                  _buildSharedBtn('dnb_btn_audio'.tr(), _handleAudClick, widget.isDark, _getBtnColor(_audBtnState, accent), bgColor: _getBtnBgColor(_audBtnState), width: 140),
+                ],
+              ),
+              const SizedBox(height: 40),
+            ],
           ),
         ),
-        const Spacer(),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildSharedBtn('dnb_btn_position'.tr(), _handlePosClick, widget.isDark, _getBtnColor(_posBtnState, accent), bgColor: _getBtnBgColor(_posBtnState), width: 140),
-            _buildSharedBtn('dnb_btn_audio'.tr(), _handleAudClick, widget.isDark, _getBtnColor(_audBtnState, accent), bgColor: _getBtnBgColor(_audBtnState), width: 140),
-          ],
-        ),
-        const SizedBox(height: 40),
-      ],
+      ),
     );
   }
 }
-
-
 

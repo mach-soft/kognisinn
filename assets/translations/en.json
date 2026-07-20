@@ -345,7 +345,14 @@
   "onboarding_gamification_desc": "Although the training modules correspond to scientific methodology, we offer a gamified scoring system to give you a better idea of your progress. An average beginner achieves a score of 100, and the theoretical human maximum is around 200. This score is not calculated by any standardized scientific method; it is just our rough estimate to keep you motivated. Do you want to display these gamified values?",
   "onboard_btn_finish": "FINISH",
   "global_progress": "Overall Progress",
-  "global_score_kci": "Score: {} KCI"
+  "global_score_kci": "Score: {} KCI",
+  "palace_settings_items_per_loc": "Items per location",
+  "palace_settings_rand_locs": "Random location order during recall",
+  "palace_settings_rand_items": "Random item order during recall",
+  "palace_diff_standard": "STANDARD",
+  "palace_diff_expert": "EXPERT",
+  "palace_diff_expert_plus": "EXPERT+"
+
 
 
 

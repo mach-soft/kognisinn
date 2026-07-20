@@ -17,6 +17,7 @@ class ShowResultsEvent extends DigitSpanEvent {}
 class SelectGameTypeEvent extends DigitSpanEvent {
   final GameType type;
   const SelectGameTypeEvent(this.type);
+
   @override
   List<Object?> get props => [type];
 }
@@ -24,6 +25,7 @@ class SelectGameTypeEvent extends DigitSpanEvent {
 class ModeSelectedEvent extends DigitSpanEvent {
   final GameMode mode;
   const ModeSelectedEvent(this.mode);
+
   @override
   List<Object?> get props => [mode];
 }
@@ -32,6 +34,7 @@ class StartGameEvent extends DigitSpanEvent {
   final GameMode mode;
   final bool loadSave;
   const StartGameEvent(this.mode, this.loadSave);
+
   @override
   List<Object?> get props => [mode, loadSave];
 }
@@ -41,6 +44,7 @@ class SaveGameAndExitEvent extends DigitSpanEvent {}
 class NumberPressedEvent extends DigitSpanEvent {
   final int digit;
   const NumberPressedEvent(this.digit);
+
   @override
   List<Object?> get props => [digit];
 }
@@ -50,7 +54,7 @@ class BackspacePressedEvent extends DigitSpanEvent {}
 class ChangeSettingsEvent extends DigitSpanEvent {
   final SoundSetting? sound;
   final double? speed;
-  final int? fastStartLevel; // PŘIDÁNO
+  final int? fastStartLevel;
 
   const ChangeSettingsEvent({this.sound, this.speed, this.fastStartLevel});
 
@@ -61,6 +65,7 @@ class ChangeSettingsEvent extends DigitSpanEvent {
 class ChangeTrainingLevelEvent extends DigitSpanEvent {
   final int change;
   const ChangeTrainingLevelEvent(this.change);
+
   @override
   List<Object?> get props => [change];
 }

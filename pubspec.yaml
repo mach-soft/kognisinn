@@ -1,7 +1,7 @@
 name: kognisinn
 description: "Aplikace pro kognitivní trénink"
 publish_to: 'none'
-version: 0.9.1-beta
+version: 0.9.2-beta
 
 environment:
   sdk: '>=3.2.3 <4.0.0'
@@ -33,6 +33,7 @@ dev_dependencies:
   flutter_lints: any
   flutter_launcher_icons: any
   flutter_native_splash: any
+  msix: ^3.18.0
 
 flutter:
   uses-material-design: true
@@ -56,3 +57,13 @@ flutter_native_splash:
   android_12:
     image: "assets/logo.png"
     icon_background_color: "#B8E8F4"
+
+# --- MSIX KONFIGURACE PRO MICROSOFT STORE ---
+msix_config:
+  display_name: "Kognisinn"
+  publisher_display_name: "Mach-soft"
+  identity_name: "Mach-soft.Kognisinn"
+  publisher: "CN=FE4E51C3-1321-46FE-8F85-C32183FD219C"
+  msix_version: "0.9.2.0"
+  logo_path: "assets/icon.png"
+  build_args: "--dart-define-from-file=secrets.json --dart-define=USE_TELEMETRY=true"

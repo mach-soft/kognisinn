@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:easy_localization/easy_localization.dart';
-// import 'package:fl_chart/fl_chart.dart'; 
 import '../../bloc/stroop/stroop_bloc.dart';
 import '../../bloc/stroop/stroop_event.dart';
 import '../../bloc/stroop/stroop_state.dart';
@@ -10,13 +9,13 @@ import '../../bloc/settings/settings_bloc.dart';
 class StroopScreen extends StatelessWidget {
   const StroopScreen({super.key});
 
-  final Map<String, Color> _colorMap = const {
-    'ČERVENÁ': Color(0xFFFF5252),
-    'MODRÁ': Color(0xFF448AFF),
-    'ZELENÁ': Color(0xFF69F0AE),
-    'ŽLUTÁ': Color(0xFFFFD740),
-    'ORANŽOVÁ': Color(0xFFFFAB40),
-    'FIALOVÁ': Color(0xFFE040FB),
+   final Map<String, Color> _colorMap = const {
+    'ČERVENÁ': Color(0xFFFF1744), // Sytá červená
+    'MODRÁ': Color(0xFF2979FF),   // Čistá modrá
+    'ZELENÁ': Color(0xFF00E676),  // Zářivá zelená
+    'ŽLUTÁ': Color(0xFFFFEA00),   // Zářivá citronová žlutá
+    'ORANŽOVÁ': Color(0xFFFF6D00),// Tmavá sytá oranžová (nekoliduje se žlutou)
+    'FIALOVÁ': Color(0xFFD500F9), // Výrazná fialová
   };
 
   Future<bool> _showInterruptDialog(BuildContext context, bool isDark) async {
@@ -163,7 +162,7 @@ class StroopScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBody(BuildContext context, StroopState state, bool isDark) {
+    Widget _buildBody(BuildContext context, StroopState state, bool isDark) {
     if (state.phase == StroopPhase.menu) return _buildMenu(context, isDark);
     if (state.phase == StroopPhase.result) return _buildResults(context, state, isDark);
     if (state.phase == StroopPhase.history) return _buildHistory(context, state, isDark);
@@ -174,45 +173,62 @@ class StroopScreen extends StatelessWidget {
 
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          decoration: BoxDecoration(color: accent.withAlpha(20), borderRadius: BorderRadius.circular(16), border: Border.all(color: accent.withAlpha(40))),
-          child: Text('stroop_status'.tr(args: [state.currentRound.toString(), state.totalRounds.toString()]), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2)),
-        ),
-        const SizedBox(height: 20),
-        Text(instruction, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black54, letterSpacing: 1.5)),
-        const Spacer(),
-        
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 24),
-          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1A1A2E).withAlpha(150) : Colors.white.withAlpha(150),
-            borderRadius: BorderRadius.circular(32),
-            border: Border.all(color: isDark ? Colors.white12 : accent.withAlpha(20), width: 1.5),
-            boxShadow: isDark ? [] : [BoxShadow(color: accent.withAlpha(15), blurRadius: 30, offset: const Offset(0, 15))],
-          ),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              state.currentWord.tr(),
-              style: TextStyle(
-                fontSize: 72, fontWeight: FontWeight.w900, color: state.currentInkColor,
-                shadows: [Shadow(color: state.currentInkColor.withAlpha(100), blurRadius: 20)],
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: SizedBox(
+        width: double.infinity, // Posuvník vpravo
+        child: Padding(
+          padding: const EdgeInsets.only(top: 20.0, bottom: 80.0, left: 24.0, right: 24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                decoration: BoxDecoration(color: accent.withAlpha(20), borderRadius: BorderRadius.circular(16), border: Border.all(color: accent.withAlpha(40))),
+                child: Text('stroop_status'.tr(args: [state.currentRound.toString(), state.totalRounds.toString()]), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2)),
               ),
-            ),
+              const SizedBox(height: 12),
+              Text(instruction, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black54, letterSpacing: 1.5)),
+              
+              const SizedBox(height: 24),
+              
+              // Kompaktnější kontejner pro slovo
+              Container(
+                width: 330,
+                height: 140,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1A1A2E).withAlpha(150) : Colors.white.withAlpha(150),
+                  borderRadius: BorderRadius.circular(32),
+                  border: Border.all(color: isDark ? Colors.white12 : accent.withAlpha(20), width: 1.5),
+                  boxShadow: isDark ? [] : [BoxShadow(color: accent.withAlpha(15), blurRadius: 30, offset: const Offset(0, 15))],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      state.currentWord.tr(),
+                      style: TextStyle(
+                        fontSize: 64,
+                        fontWeight: FontWeight.w900, 
+                        color: state.currentInkColor,
+                        shadows: [Shadow(color: state.currentInkColor.withAlpha(100), blurRadius: 20)],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 30),
+              _buildOptions(context, state, isDark),
+            ],
           ),
         ),
-        
-        const Spacer(),
-        _buildOptions(context, state, isDark),
-        const SizedBox(height: 40),
-      ],
+      ),
     );
   }
+
 
   Widget _buildOptions(BuildContext context, StroopState state, bool isDark) {
     if (state.activeGameType == StroopGameType.trueFalse) {
@@ -229,7 +245,8 @@ class StroopScreen extends StatelessWidget {
       width: 330,
       child: GridView.builder(
         shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 2.0, crossAxisSpacing: 16, mainAxisSpacing: 16),
+        // childAspectRatio zvýšeno na 2.5 (zploští tlačítka na výšku) a zmenšené mezery
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 2.5, crossAxisSpacing: 12, mainAxisSpacing: 12),
         itemCount: state.options.length,
         itemBuilder: (context, index) {
           final ans = state.options[index]; 
@@ -240,8 +257,8 @@ class StroopScreen extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 color: btnColor,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [BoxShadow(color: btnColor.withAlpha(80), blurRadius: 15, offset: const Offset(0, 5))],
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [BoxShadow(color: btnColor.withAlpha(80), blurRadius: 10, offset: const Offset(0, 4))],
                 border: Border.all(color: Colors.white.withAlpha(50), width: 2),
               ),
             ),
@@ -251,56 +268,64 @@ class StroopScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMenu(BuildContext context, bool isDark) {
+    Widget _buildMenu(BuildContext context, bool isDark) {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Stack(
-            alignment: Alignment.topRight,
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: SizedBox(
+        width: double.infinity, // Posuvník vpravo
+        child: Padding(
+          padding: const EdgeInsets.only(top: 40.0, bottom: 80.0, left: 24.0, right: 24.0), 
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                child: Icon(Icons.palette_rounded, size: 80, color: accent.withAlpha(150)),
-              ),
-              Positioned(
-                top: 0, right: 0,
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: () => _showModuleInfoDialog(context, isDark, accent),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: accent.withAlpha(20),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: accent.withAlpha(50)),
+              Stack(
+                alignment: Alignment.topRight,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    child: Icon(Icons.palette_rounded, size: 80, color: accent.withAlpha(150)),
+                  ),
+                  Positioned(
+                    top: 0, right: 0,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () => _showModuleInfoDialog(context, isDark, accent),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: accent.withAlpha(20),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: accent.withAlpha(50)),
+                          ),
+                          child: Icon(Icons.help_outline_rounded, size: 20, color: accent),
+                        ),
                       ),
-                      child: Icon(Icons.help_outline_rounded, size: 20, color: accent),
                     ),
                   ),
-                ),
+                ],
               ),
+              const SizedBox(height: 40),
+              
+              _menuBtn(context, 'stroop_mode_standard'.tr(), () => context.read<StroopBloc>().add(const StartStroopGame(gameType: StroopGameType.standard)), isDark, isPrimary: true, icon: Icons.palette_rounded),
+              const SizedBox(height: 16),
+              _menuBtn(context, 'stroop_mode_reverse'.tr(), () => context.read<StroopBloc>().add(const StartStroopGame(gameType: StroopGameType.reverse)), isDark, icon: Icons.flip_rounded),
+              const SizedBox(height: 16),
+              _menuBtn(context, 'stroop_mode_tf'.tr(), () => context.read<StroopBloc>().add(const StartStroopGame(gameType: StroopGameType.trueFalse)), isDark, icon: Icons.thumbs_up_down_rounded),
+              const SizedBox(height: 40),
+              _menuBtn(context, 'global_analytics'.tr(), () => context.read<StroopBloc>().add(ShowStroopHistory()), isDark, icon: Icons.insights_rounded, isSecondary: true),
+              const SizedBox(height: 16),
+              _menuBtn(context, 'global_exit_module'.tr(), () => Navigator.pop(context), isDark, icon: Icons.power_settings_new_rounded, isDanger: true),
             ],
           ),
-          const SizedBox(height: 40),
-          
-          _menuBtn(context, 'stroop_mode_standard'.tr(), () => context.read<StroopBloc>().add(const StartStroopGame(gameType: StroopGameType.standard)), isDark, isPrimary: true, icon: Icons.palette_rounded),
-          const SizedBox(height: 16),
-          _menuBtn(context, 'stroop_mode_reverse'.tr(), () => context.read<StroopBloc>().add(const StartStroopGame(gameType: StroopGameType.reverse)), isDark, icon: Icons.flip_rounded),
-          const SizedBox(height: 16),
-          _menuBtn(context, 'stroop_mode_tf'.tr(), () => context.read<StroopBloc>().add(const StartStroopGame(gameType: StroopGameType.trueFalse)), isDark, icon: Icons.thumbs_up_down_rounded),
-          const SizedBox(height: 40),
-          _menuBtn(context, 'global_analytics'.tr(), () => context.read<StroopBloc>().add(ShowStroopHistory()), isDark, icon: Icons.insights_rounded, isSecondary: true),
-          const SizedBox(height: 16),
-          _menuBtn(context, 'global_exit_module'.tr(), () => Navigator.pop(context), isDark, icon: Icons.power_settings_new_rounded, isDanger: true),
-        ],
+        ),
       ),
     );
   }
+
 
   Widget _buildResults(BuildContext context, StroopState state, bool isDark) {
     double percent = state.totalRounds > 0 ? (state.score / state.totalRounds) * 100 : 0;
@@ -310,27 +335,31 @@ class StroopScreen extends StatelessWidget {
       builder: (context, settingsState) {
         final showGamified = settingsState.showGamifiedValues;
 
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.hub_rounded, size: 80, color: accent),
-              const SizedBox(height: 30),
-              Text('global_training_complete'.tr(), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 3, color: isDark ? Colors.white54 : Colors.black54)),
-              const SizedBox(height: 10),
-              Text('${percent.toStringAsFixed(1)}%', style: TextStyle(fontSize: 60, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B))),
-              
-              if (showGamified && state.history.isNotEmpty) ...[
-                Text('global_score_kci'.tr(args: [StroopBloc.calculateKci(state.history.last.medianReactionTime * 1000, state.activeGameType).toString()]), 
-                  style: TextStyle(fontSize: 18, color: accent, fontWeight: FontWeight.bold)),
-              ] else ...[
-                Text('stroop_result_score'.tr(args: [state.score.toString(), state.totalRounds.toString()]), 
-                  style: TextStyle(fontSize: 18, color: accent, fontWeight: FontWeight.bold)),
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 40.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.hub_rounded, size: 80, color: accent),
+                const SizedBox(height: 30),
+                Text('global_training_complete'.tr(), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 3, color: isDark ? Colors.white54 : Colors.black54)),
+                const SizedBox(height: 10),
+                Text('${percent.toStringAsFixed(1)}%', style: TextStyle(fontSize: 60, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B))),
+                
+                if (showGamified && state.history.isNotEmpty) ...[
+                  Text('global_score_kci'.tr(args: [StroopBloc.calculateKci(state.history.last.medianReactionTime * 1000, state.activeGameType).toString()]), 
+                    style: TextStyle(fontSize: 18, color: accent, fontWeight: FontWeight.bold)),
+                ] else ...[
+                  Text('stroop_result_score'.tr(args: [state.score.toString(), state.totalRounds.toString()]), 
+                    style: TextStyle(fontSize: 18, color: accent, fontWeight: FontWeight.bold)),
+                ],
+                
+                const SizedBox(height: 50),
+                _menuBtn(context, 'global_btn_to_menu'.tr(), () => context.read<StroopBloc>().add(ResetStroop()), isDark, isPrimary: true),
               ],
-              
-              const SizedBox(height: 50),
-              _menuBtn(context, 'global_btn_to_menu'.tr(), () => context.read<StroopBloc>().add(ResetStroop()), isDark, isPrimary: true),
-            ],
+            ),
           ),
         );
       }
@@ -344,18 +373,19 @@ class StroopScreen extends StatelessWidget {
 
         return SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-              _buildSingleGraph(context, state, StroopGameType.standard, 'stroop_mode_standard'.tr(), isDark, showGamified),
-              const SizedBox(height: 30),
-              _buildSingleGraph(context, state, StroopGameType.reverse, 'stroop_mode_reverse'.tr(), isDark, showGamified),
-              const SizedBox(height: 30),
-              _buildSingleGraph(context, state, StroopGameType.trueFalse, 'stroop_mode_tf'.tr(), isDark, showGamified),
-              const SizedBox(height: 40),
-              _menuBtn(context, 'global_btn_back'.tr(), () => context.read<StroopBloc>().add(ResetStroop()), isDark),
-              const SizedBox(height: 40),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 40.0),
+            child: Column(
+              children: [
+                _buildSingleGraph(context, state, StroopGameType.standard, 'stroop_mode_standard'.tr(), isDark, showGamified),
+                const SizedBox(height: 30),
+                _buildSingleGraph(context, state, StroopGameType.reverse, 'stroop_mode_reverse'.tr(), isDark, showGamified),
+                const SizedBox(height: 30),
+                _buildSingleGraph(context, state, StroopGameType.trueFalse, 'stroop_mode_tf'.tr(), isDark, showGamified),
+                const SizedBox(height: 40),
+                _menuBtn(context, 'global_btn_back'.tr(), () => context.read<StroopBloc>().add(ResetStroop()), isDark),
+              ],
+            ),
           ),
         );
       }

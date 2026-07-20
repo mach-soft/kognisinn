@@ -1,478 +1,358 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:vibration/vibration.dart';
+
+import 'package:kognisinn/env.dart';
 
 import 'digit_span_event.dart';
 import 'digit_span_state.dart';
 
 class DigitSpanBloc extends Bloc<DigitSpanEvent, DigitSpanState> {
+  final Random _rnd = Random();
   final FlutterTts _flutterTts = FlutterTts();
-  final Random _random = Random();
   SharedPreferences? _prefs;
+  
+  // Zamezení běhu smyček po opuštění modulu
+  int _roundId = 0;
 
   DigitSpanBloc() : super(const DigitSpanState()) {
-    on<InitializeHardwareEvent>(_onInitializeHardware);
+    on<InitializeHardwareEvent>(_onInit);
+    on<SplashFinishedEvent>((event, emit) => emit(state.copyWith(phase: GamePhase.menu)));
+    on<ReturnToMenuEvent>(_onReturnToMenu);
+    on<ShowSettingsEvent>((event, emit) {
+      _cancelRound();
+      emit(state.copyWith(phase: GamePhase.settings));
+    });
+    on<ShowResultsEvent>((event, emit) {
+      _cancelRound();
+      emit(state.copyWith(phase: GamePhase.showingResults));
+    });
     
-    on<ToggleGamificationEvent>((event, emit) async {
-      if (_prefs != null) {
-        await _prefs!.setBool('ds_gamification_enabled', event.isEnabled);
+    on<SetLanguageEvent>(_onSetLanguage);
+    
+    on<SelectGameTypeEvent>((event, emit) {
+      int startN = event.type == GameType.fastTest ? state.fastTestStartingLevel : 3;
+      emit(state.copyWith(gameType: event.type, phase: GamePhase.choosingMode, sequenceLength: startN));
+    });
+    
+    on<ModeSelectedEvent>((event, emit) {
+      emit(state.copyWith(
+        gameMode: event.mode, 
+        failsInCurrentSpan: 0, 
+        consecutiveSuccesses: 0, 
+        consecutiveFailures: 0
+      ));
+
+      if (state.gameType == GameType.training) {
+        emit(state.copyWith(phase: GamePhase.choosingLevel));
+      } else {
+        add(PlayNextRoundEvent());
       }
+    });
+    
+    on<ChangeTrainingLevelEvent>((event, emit) {
+      int newLevel = max(2, state.sequenceLength + event.change);
+      emit(state.copyWith(sequenceLength: newLevel));
+    });
+
+    on<ToggleGamificationEvent>((event, emit) {
+      _prefs?.setBool('ds_gamification', event.isEnabled);
       emit(state.copyWith(isGamificationEnabled: event.isEnabled));
     });
 
-    on<SetLanguageEvent>((event, emit) async {
-      String ttsLang = "cs-CZ";
-      if (event.langCode == 'en') ttsLang = "en-US";
-      if (event.langCode == 'de') ttsLang = "de-DE";
-      
-      try {
-        await _flutterTts.setLanguage(ttsLang);
-        await _flutterTts.setSpeechRate(0.5); 
-      } catch (e) {
-        debugPrint("Chyba změny TTS jazyka: $e");
-      }
-    });
-
-    on<SplashFinishedEvent>((event, emit) => emit(state.copyWith(phase: GamePhase.menu)));
-    on<ReturnToMenuEvent>(_onReturnToMenu);
-    on<ShowSettingsEvent>((event, emit) => emit(state.copyWith(phase: GamePhase.settings)));
+    on<ChangeSettingsEvent>(_onChangeSettings);
     
-    on<ShowResultsEvent>((event, emit) {
-      if (_prefs != null) {
-        Map<GameMode, int> freshHighScores = {};
-        for (var mode in GameMode.values) {
-          freshHighScores[mode] = _prefs!.getInt('highScore_$mode') ?? 0;
-        }
-        emit(state.copyWith(phase: GamePhase.showingResults, highScores: freshHighScores));
-      } else {
-        emit(state.copyWith(phase: GamePhase.showingResults));
-      }
-    });
-
-    on<SelectGameTypeEvent>((event, emit) => emit(state.copyWith(gameType: event.type, phase: GamePhase.choosingMode)));
-    on<ModeSelectedEvent>(_onModeSelected);
-    on<StartGameEvent>(_onStartGame);
-    on<SaveGameAndExitEvent>(_onSaveGameAndExit);
+    on<PlayNextRoundEvent>(_onPlayNextRound);
     on<NumberPressedEvent>(_onNumberPressed);
     on<BackspacePressedEvent>(_onBackspacePressed);
-    on<ChangeSettingsEvent>(_onChangeSettings);
-    on<ChangeTrainingLevelEvent>(_onChangeTrainingLevel);
-    on<PlayNextRoundEvent>(_onPlayNextRound);
+    on<SaveGameAndExitEvent>(_onSaveGameAndExit);
   }
 
-  // --- JEDINÝ ZDROJ PRAVDY PRO KCI (s modifikátory) ---
   static int calculateKci(double span, GameMode mode) {
-    if (span <= 0 || span.isNaN || span.isInfinite) return 0;
-    
-    double modifier = 1.0;
-    if (mode == GameMode.ascending) modifier = 1.15;
-    if (mode == GameMode.reverse) modifier = 1.35;
-    
-    double val = span * modifier;
-
-    double worst = 3.0;     
-    double baseline = 5.5;  
-    double trained = 9.0;   
-
-    double score = 0;
-    if (val <= baseline) {
-      score = (((val - worst) / (baseline - worst)) * 100.0);
-    } else {
-      score = 100.0 + (((val - baseline) / (trained - baseline)) * 100.0);
-    }
-    
-    return score.round().clamp(0, 250);
+    double multiplier = 1.0;
+    if (mode == GameMode.reverse) multiplier = 1.25;
+    if (mode == GameMode.ascending) multiplier = 1.4;
+    return (span * multiplier * 10).round();
   }
 
-  // --- INTERNÍ METODA PRO ULOŽENÍ RELACE ---
-  Future<void> _saveSessionData() async {
-    if (_prefs == null || state.maxSpanInCurrentSession <= 0) return;
-    
-    final nowStr = DateTime.now().toIso8601String();
-    final span = state.maxSpanInCurrentSession;
-    final mode = state.gameMode.name;
-
-    // 1. ZÁPIS SUROVÝCH DAT (Pro grafy v UI modulu) - Formát: Datum|Mód|Kapacita
-    List<String> rawHistory = _prefs!.getStringList('ds_raw_history') ?? [];
-    rawHistory.add('$nowStr|$mode|$span');
-    if (rawHistory.length > 200) rawHistory.removeAt(0); // Držíme max 200 záznamů pro modul
-    await _prefs!.setStringList('ds_raw_history', rawHistory);
-
-    // 2. EXPORT DO KOGNITIVNÍHO PROFILU (Slepý příjemce hotového KCI)
-    final exportKci = calculateKci(span.toDouble(), state.gameMode).toDouble();
-    
-    // A: Historie KCI pro medián
-    List<String> historyKCI = _prefs!.getStringList('history_digit_span') ?? [];
-    historyKCI.add(exportKci.toString());
-    if (historyKCI.length > 50) historyKCI.removeAt(0);
-    await _prefs!.setStringList('history_digit_span', historyKCI);
-
-    // B: Denní agregát KCI (Ukládá maximum daného dne)
-    final today = nowStr.substring(0, 10);
-    List<String> dailyRaw = _prefs!.getStringList('ds_daily_history') ?? [];
-    Map<String, double> dailyMap = {};
-    for (String entry in dailyRaw) {
-      final parts = entry.split('|');
-      if (parts.length == 2) dailyMap[parts[0]] = double.tryParse(parts[1]) ?? 0.0;
-    }
-    if (dailyMap.containsKey(today)) {
-      if (exportKci > dailyMap[today]!) dailyMap[today] = exportKci;
-    } else {
-      dailyMap[today] = exportKci;
-    }
-    var sortedKeys = dailyMap.keys.toList()..sort();
-    if (sortedKeys.length > 10) sortedKeys = sortedKeys.sublist(sortedKeys.length - 10);
-    await _prefs!.setStringList('ds_daily_history', sortedKeys.map((k) => '$k|${dailyMap[k]}').toList());
-    
-    // C: Validita
-    await _prefs!.setInt('validity_digit_span', sortedKeys.length);
-  }
-
-  Future<void> _onInitializeHardware(InitializeHardwareEvent event, Emitter<DigitSpanState> emit) async {
+  Future<void> _safeTtsStop() async {
     try {
-      _prefs = await SharedPreferences.getInstance();
-      Map<GameMode, int> loadedHighScores = {};
-      for (var mode in GameMode.values) {
-        loadedHighScores[mode] = _prefs?.getInt('highScore_$mode') ?? 0;
+      if (kIsWeb || (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS)) {
+        await _flutterTts.stop();
       }
-      
-      bool isGamificationOn = _prefs?.getBool('ds_gamification_enabled') ?? true;
-      int fastStart = _prefs?.getInt('ds_fast_start_level') ?? 3;
-
-      List<String> savedHistoryStr = _prefs?.getStringList('ds_detailed_history') ?? [];
-      List<GameResult> loadedHistory = savedHistoryStr.map((s) => GameResult.fromPrefsString(s)).toList();
-
-      emit(state.copyWith(
-        highScores: loadedHighScores, 
-        isGamificationEnabled: isGamificationOn,
-        fastTestStartingLevel: fastStart,
-        resultsHistory: loadedHistory,
-      ));
     } catch (e) {
-      debugPrint("Chyba paměti: $e");
+      debugPrint("TTS Stop Error: $e");
     }
   }
 
-  void _onReturnToMenu(ReturnToMenuEvent event, Emitter<DigitSpanState> emit) {
-    _flutterTts.stop();
-    if (_prefs != null) {
-        Map<GameMode, int> freshHighScores = {};
-        for (var mode in GameMode.values) {
-          freshHighScores[mode] = _prefs!.getInt('highScore_$mode') ?? 0;
+  void _tryVibrate() {
+    try {
+      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        if (Env.useHaptics && (_prefs?.getBool('global_is_haptic') ?? true)) {
+          Vibration.vibrate(duration: _prefs?.getInt('global_haptic_duration') ?? 300);
         }
-        emit(state.copyWith(phase: GamePhase.menu, highScores: freshHighScores, isEmphaticMode: false));
-    } else {
-        emit(state.copyWith(phase: GamePhase.menu, isEmphaticMode: false));
+      }
+    } catch (e) {
+      debugPrint("Vibrace selhala: $e");
+    }
+  }
+
+  void _cancelRound() {
+    _roundId++;
+    _safeTtsStop();
+  }
+
+  Future<void> _onInit(InitializeHardwareEvent event, Emitter<DigitSpanState> emit) async {
+    _prefs = await SharedPreferences.getInstance();
+    
+    final isGami = _prefs?.getBool('ds_gamification') ?? true;
+    final startLvl = _prefs?.getInt('ds_fast_start') ?? 3;
+    final speedFact = _prefs?.getDouble('ds_speed') ?? 1.0;
+    
+    int sSettingIndex = _prefs?.getInt('ds_sound') ?? SoundSetting.numbersAndFeedback.index;
+    SoundSetting sound = SoundSetting.values[sSettingIndex];
+
+    final rawHistory = _prefs?.getStringList('ds_raw_history') ?? [];
+    List<GameResult> history = [];
+    Map<GameMode, int> bests = { GameMode.forward: 0, GameMode.reverse: 0, GameMode.ascending: 0 };
+
+    for (var str in rawHistory) {
+      try {
+        final res = GameResult.fromPrefsString(str);
+        history.add(res);
+        if (res.isCorrect && res.level > bests[res.mode]!) {
+          bests[res.mode] = res.level;
+        }
+      } catch (e) {
+        debugPrint("Chyba čtení historie DS: $e");
+      }
+    }
+
+    emit(state.copyWith(
+      isGamificationEnabled: isGami,
+      fastTestStartingLevel: startLvl,
+      speedFactor: speedFact,
+      soundSetting: sound,
+      resultsHistory: history,
+      highScores: bests,
+    ));
+  }
+
+  Future<void> _onSetLanguage(SetLanguageEvent event, Emitter<DigitSpanState> emit) async {
+    String ttsLang = "en-US";
+    if (event.langCode == 'cs') ttsLang = "cs-CZ";
+    else if (event.langCode == 'de') ttsLang = "de-DE";
+
+    try {
+      await _flutterTts.setLanguage(ttsLang);
+      
+      // Zásadní oprava: Záměrně ZAKÁZÁNO pro Windows. Způsobovalo to zpětný callback
+      // na špatném vlákně a pád celé aplikace.
+      if (kIsWeb || (!Platform.isWindows)) {
+        await _flutterTts.awaitSpeakCompletion(true);
+      }
+    } catch (e) {
+      debugPrint("Chyba TTS: $e");
     }
   }
 
   void _onChangeSettings(ChangeSettingsEvent event, Emitter<DigitSpanState> emit) {
-    if (event.fastStartLevel != null && _prefs != null) {
-      _prefs!.setInt('ds_fast_start_level', event.fastStartLevel!);
-    }
-    emit(state.copyWith(
-      soundSetting: event.sound ?? state.soundSetting,
-      speedFactor: event.speed ?? state.speedFactor,
-      fastTestStartingLevel: event.fastStartLevel ?? state.fastTestStartingLevel,
-    ));
+    double newSpeed = event.speed ?? state.speedFactor;
+    int newStart = event.fastStartLevel ?? state.fastTestStartingLevel;
+    SoundSetting newSound = event.sound ?? state.soundSetting;
+
+    _prefs?.setDouble('ds_speed', newSpeed);
+    _prefs?.setInt('ds_fast_start', newStart);
+    _prefs?.setInt('ds_sound', newSound.index);
+
+    emit(state.copyWith(speedFactor: newSpeed, fastTestStartingLevel: newStart, soundSetting: newSound));
   }
 
-  void _onChangeTrainingLevel(ChangeTrainingLevelEvent event, Emitter<DigitSpanState> emit) {
-    int newLen = state.sequenceLength + event.change;
-    if (newLen < 1) newLen = 1;
-    emit(state.copyWith(sequenceLength: newLen));
-  }
-
-  Future<void> _updateHighScore(GameMode mode, int reachedLevel, Emitter<DigitSpanState> emit) async {
-    if (_prefs == null) return;
-    String key = 'highScore_$mode';
-    int currentHigh = _prefs!.getInt(key) ?? 0;
-    if (reachedLevel > currentHigh) {
-      await _prefs!.setInt(key, reachedLevel);
-      final newScores = Map<GameMode, int>.from(state.highScores);
-      newScores[mode] = reachedLevel;
-      emit(state.copyWith(highScores: newScores));
-    }
-  }
-
-  void _onModeSelected(ModeSelectedEvent event, Emitter<DigitSpanState> emit) {
-    add(StartGameEvent(event.mode, true)); 
-  }
-
-  Future<void> _onStartGame(StartGameEvent event, Emitter<DigitSpanState> emit) async {
-    int seqLen = 3;
-    int succ = 0;
-    int fail = 0;
-    bool emp = false;
-
-    if (state.gameType == GameType.training) {
-      emit(state.copyWith(
-        gameMode: event.mode, 
-        phase: GamePhase.choosingLevel, 
-        sequenceLength: seqLen, 
-        failsInCurrentSpan: 0, 
-        maxSpanInCurrentSession: 0,
-        isEmphaticMode: false
-      ));
-      return;
-    }
-
-    if (event.loadSave && _prefs != null) {
-      String modeStr = event.mode.toString();
-      
-      if (state.gameType == GameType.gameMode) {
-        int savedLen = _prefs!.getInt('${modeStr}_level') ?? seqLen;
-        seqLen = savedLen - 1;
-        int minLen = 3;
-        if (seqLen < minLen) seqLen = minLen;
-        
-        succ = _prefs!.getInt('${modeStr}_successes') ?? 0;
-        fail = _prefs!.getInt('${modeStr}_failures') ?? 0;
-        
-        emp = _prefs!.getBool('${modeStr}_emphatic') ?? false;
-        if (succ < 5) emp = false;
-      }
-    }
-
-    if (state.gameType == GameType.fastTest) {
-      seqLen = state.fastTestStartingLevel;
-      await _updateHighScore(event.mode, seqLen, emit);
-      succ = 0;
-      fail = 0;
-      emp = false;
-    }
-
-    emit(state.copyWith(
-      gameMode: event.mode,
-      sequenceLength: seqLen,
-      consecutiveSuccesses: succ,
-      consecutiveFailures: fail,
-      failsInCurrentSpan: 0,
-      maxSpanInCurrentSession: 0, // Reset při startu
-      isEmphaticMode: emp,
-    ));
-    add(PlayNextRoundEvent());
-  }
-
-  Future<void> _onSaveGameAndExit(SaveGameAndExitEvent event, Emitter<DigitSpanState> emit) async {
-    await _saveSessionData(); // ULOŽENÍ PŘI MANUÁLNÍM OPUŠTĚNÍ
-    
-    if (_prefs != null) {
-      String modeStr = state.gameMode.toString();
-      await _prefs!.setInt('${modeStr}_level', state.sequenceLength);
-      await _prefs!.setInt('${modeStr}_successes', state.consecutiveSuccesses);
-      await _prefs!.setInt('${modeStr}_failures', state.consecutiveFailures);
-      await _prefs!.setBool('${modeStr}_emphatic', state.isEmphaticMode);
-    }
-    _flutterTts.stop();
-    emit(state.copyWith(phase: GamePhase.menu, isEmphaticMode: false));
+  void _onReturnToMenu(ReturnToMenuEvent event, Emitter<DigitSpanState> emit) {
+    _cancelRound();
+    emit(state.copyWith(phase: GamePhase.menu, failsInCurrentSpan: 0, consecutiveSuccesses: 0, consecutiveFailures: 0));
   }
 
   Future<void> _onPlayNextRound(PlayNextRoundEvent event, Emitter<DigitSpanState> emit) async {
-    _generateSequences(emit);
-    
-    emit(state.copyWith(userInput: '', currentlyDisplayedDigit: '', phase: GamePhase.showingSequence));
+    _roundId++;
+    final currentRoundId = _roundId;
 
-    double finalRate = 0.5 * state.speedFactor;
-    bool shouldEmphasize = state.isEmphaticMode && state.gameType == GameType.gameMode && state.isGamificationEnabled;
-    
-    double finalPitch = shouldEmphasize ? 1.05 : 1.0;
-    if (shouldEmphasize) finalRate *= 0.98;
-
-    await _flutterTts.setPitch(finalPitch);
-    await _flutterTts.setSpeechRate(finalRate);
-
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    for (int i = 0; i < state.currentSequence.length; i++) {
-      if (state.phase != GamePhase.showingSequence) break; 
-      
-      String digitStr = state.currentSequence[i].toString();
-      emit(state.copyWith(currentlyDisplayedDigit: digitStr));
-      
-      if (state.soundSetting != SoundSetting.off) await _flutterTts.speak(digitStr);
-      await Future.delayed(const Duration(milliseconds: 1000));
-      
-      if (state.phase != GamePhase.showingSequence) break;
-      
-      emit(state.copyWith(currentlyDisplayedDigit: ''));
-      await Future.delayed(const Duration(milliseconds: 400));
-    }
-
-    if (state.phase == GamePhase.showingSequence) {
-      emit(state.copyWith(phase: GamePhase.waitingForInput));
-    }
-  }
-
-  void _generateSequences(Emitter<DigitSpanState> emit) {
-    List<int> currentSeq = [];
-    List<int> expectedSeq = [];
-
+    List<int> seq = [];
     for (int i = 0; i < state.sequenceLength; i++) {
-      int val = 0; 
-      bool isValid = false;
-      
-      while (!isValid) {
-        val = _random.nextInt(10);
-        isValid = true;
-        
-        if (i > 0) {
-          if (val == currentSeq[i - 1]) isValid = false;
-          if (val == currentSeq[i - 1] + 1) isValid = false;
-          if (val == currentSeq[i - 1] - 1) isValid = false;
+      seq.add(_rnd.nextInt(10)); 
+    }
+
+    List<int> exp = List.from(seq);
+    if (state.gameMode == GameMode.reverse) {
+      exp = exp.reversed.toList();
+    } else if (state.gameMode == GameMode.ascending) {
+      exp.sort();
+    }
+
+    emit(state.copyWith(
+      phase: GamePhase.showingSequence, 
+      currentSequence: seq, 
+      expectedSequence: exp, 
+      userInput: "", 
+      currentlyDisplayedDigit: ""
+    ));
+
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    double baseRate = (!kIsWeb && Platform.isWindows) ? 1.0 : 0.5;
+    double finalRate = baseRate * state.speedFactor;
+
+    for (int i = 0; i < seq.length; i++) {
+      if (_roundId != currentRoundId || isClosed) return;
+
+      String digitStr = seq[i].toString();
+      emit(state.copyWith(currentlyDisplayedDigit: digitStr));
+
+      int delayMs = (1000 / state.speedFactor).round();
+      int elapsedMs = 0;
+
+      if (state.soundSetting != SoundSetting.off) {
+        try {
+          await _flutterTts.setSpeechRate(finalRate);
+          
+          final watch = Stopwatch()..start();
+          
+          // KLÍČOVÁ OPRAVA: Na Windows voláme asynchronně bez 'await'.
+          // Windows nesmí čekat na TTS plugin, ten si hraje zvuk bezpečně na pozadí,
+          // zatímco my si řídíme časování čistě přes náš Future.delayed.
+          if (!kIsWeb && Platform.isWindows) {
+            _flutterTts.speak(digitStr).catchError((e) { debugPrint("TTS Error: $e"); });
+            elapsedMs = 0; // Okamžitě pokračujeme k čekání vizuálního časovače
+          } else {
+            await _flutterTts.speak(digitStr); 
+            elapsedMs = watch.elapsedMilliseconds;
+          }
+          
+        } catch (e) {
+          debugPrint("TTS Error: $e");
         }
       }
-      currentSeq.add(val);
+
+      int remainingDelay = delayMs - elapsedMs;
+      if (remainingDelay > 0) {
+        await Future.delayed(Duration(milliseconds: remainingDelay));
+      }
+
+      if (_roundId != currentRoundId || isClosed) return;
+      emit(state.copyWith(currentlyDisplayedDigit: ""));
+      
+      await Future.delayed(const Duration(milliseconds: 200));
     }
 
-    switch (state.gameMode) {
-      case GameMode.forward: expectedSeq = List.from(currentSeq); break;
-      case GameMode.reverse: expectedSeq = List.from(currentSeq.reversed); break;
-      case GameMode.ascending: expectedSeq = List.from(currentSeq)..sort(); break;
-    }
-    
-    emit(state.copyWith(currentSequence: currentSeq, expectedSequence: expectedSeq));
+    if (_roundId != currentRoundId || isClosed) return;
+    emit(state.copyWith(phase: GamePhase.waitingForInput));
   }
 
-  void _onBackspacePressed(BackspacePressedEvent event, Emitter<DigitSpanState> emit) {
-    if (state.userInput.isNotEmpty) {
-      emit(state.copyWith(userInput: state.userInput.substring(0, state.userInput.length - 1)));
-    }
-  }
-
-  Future<void> _onNumberPressed(NumberPressedEvent event, Emitter<DigitSpanState> emit) async {
+  void _onNumberPressed(NumberPressedEvent event, Emitter<DigitSpanState> emit) async {
     if (state.phase != GamePhase.waitingForInput) return;
-    
+
     String newInput = state.userInput + event.digit.toString();
     emit(state.copyWith(userInput: newInput));
 
     if (newInput.length == state.expectedSequence.length) {
-      await _checkAnswer(emit);
+      bool isCorrect = true;
+      for (int i = 0; i < newInput.length; i++) {
+        if (int.parse(newInput[i]) != state.expectedSequence[i]) {
+          isCorrect = false;
+          break;
+        }
+      }
+
+      _evaluateInput(isCorrect, emit);
     }
   }
 
-  Future<void> _checkAnswer(Emitter<DigitSpanState> emit) async {
-    String expectedString = state.expectedSequence.join('');
-    bool isCorrect = state.userInput == expectedString;
+  void _onBackspacePressed(BackspacePressedEvent event, Emitter<DigitSpanState> emit) {
+    if (state.phase != GamePhase.waitingForInput || state.userInput.isEmpty) return;
+    emit(state.copyWith(userInput: state.userInput.substring(0, state.userInput.length - 1)));
+  }
 
-    List<GameResult> history = List.from(state.resultsHistory);
-    if (state.gameType != GameType.fastTest) {
-      history.add(GameResult(DateTime.now(), isCorrect, state.gameMode, state.sequenceLength));
-      
-      if (history.length > 500) {
-        history.removeAt(0); 
-      }
-      
-      if (_prefs != null) {
-        await _prefs!.setStringList('ds_detailed_history', history.map((e) => e.toPrefsString()).toList());
-      }
+  void _evaluateInput(bool isCorrect, Emitter<DigitSpanState> emit) async {
+    _roundId++; 
+    final int currentLvl = state.sequenceLength;
+
+    if (!isCorrect) {
+      _tryVibrate(); 
     }
-    emit(state.copyWith(resultsHistory: history));
 
-    if (isCorrect) {
-      // Aktualizace maxima pro tuto relaci
-      int newMax = state.maxSpanInCurrentSession;
-      if (state.sequenceLength > newMax) newMax = state.sequenceLength;
-
-      emit(state.copyWith(phase: GamePhase.showingSuccess, maxSpanInCurrentSession: newMax));
+    if (state.gameType != GameType.training) {
+      final res = GameResult(DateTime.now(), isCorrect, state.gameMode, currentLvl);
+      final newHistory = List<GameResult>.from(state.resultsHistory)..add(res);
+      _prefs?.setStringList('ds_raw_history', newHistory.map((e) => e.toPrefsString()).toList());
       
-      if (state.soundSetting == SoundSetting.numbersAndFeedback) _flutterTts.speak("ds_tts_correct".tr());
-      
-      await Future.delayed(const Duration(milliseconds: 1500));
-      if (state.phase != GamePhase.showingSuccess) return;
-
-      if (state.gameType == GameType.training) {
-        emit(state.copyWith(phase: GamePhase.choosingLevel));
-      } else if (state.gameType == GameType.fastTest) {
-        emit(state.copyWith(
-          sequenceLength: state.sequenceLength + 1,
-          failsInCurrentSpan: 0 
-        ));
-        await _updateHighScore(state.gameMode, state.sequenceLength, emit);
-        add(PlayNextRoundEvent());
-      } else {
-        int newSucc = state.consecutiveSuccesses + 1;
-        int newLen = state.sequenceLength;
-        bool newEmp = state.isEmphaticMode;
-        
-        if (state.isGamificationEnabled && newSucc >= 5) {
-          newEmp = true;
-        } else {
-          newEmp = false; 
-        }
-        
-        if (newSucc % 3 == 0) {
-          newLen++;
-          emit(state.copyWith(failsInCurrentSpan: 0)); 
-        }
-        
-        emit(state.copyWith(consecutiveSuccesses: newSucc, consecutiveFailures: 0, sequenceLength: newLen, isEmphaticMode: newEmp));
-        
-        if (_prefs != null) {
-          String modeStr = state.gameMode.toString();
-          await _prefs!.setInt('${modeStr}_level', newLen);
-          await _prefs!.setInt('${modeStr}_successes', newSucc);
-          await _prefs!.setInt('${modeStr}_failures', 0);
-          await _prefs!.setBool('${modeStr}_emphatic', newEmp);
-        }
-
-        add(PlayNextRoundEvent());
+      Map<GameMode, int> newHighScores = Map.from(state.highScores);
+      if (isCorrect && currentLvl > (newHighScores[state.gameMode] ?? 0)) {
+        newHighScores[state.gameMode] = currentLvl;
       }
-    } else {
-      bool isHaptic = _prefs?.getBool('global_is_haptic') ?? true;
-      if (isHaptic) {
-         int hDuration = _prefs?.getInt('global_haptic_duration') ?? 500;
-         Vibration.vibrate(duration: hDuration); 
-      }
+      emit(state.copyWith(resultsHistory: newHistory, highScores: newHighScores));
+    }
 
-      emit(state.copyWith(phase: GamePhase.showingFailure));
-      if (state.soundSetting == SoundSetting.numbersAndFeedback) _flutterTts.speak("ds_tts_wrong".tr());
-      
-      await Future.delayed(const Duration(milliseconds: 1500));
-      if (state.phase != GamePhase.showingFailure) return;
-
-      if (state.gameType == GameType.fastTest) {
-        int newFails = state.failsInCurrentSpan + 1;
-        
-        if (newFails >= 2) {
-          await _saveSessionData(); // ULOŽENÍ PŘI PROHŘE
-          emit(state.copyWith(phase: GamePhase.gameOver));
-        } else {
-          emit(state.copyWith(failsInCurrentSpan: newFails));
+    if (state.gameType == GameType.fastTest) {
+      if (isCorrect) {
+        emit(state.copyWith(phase: GamePhase.showingSuccess, failsInCurrentSpan: 0));
+        await Future.delayed(const Duration(milliseconds: 1000));
+        if (!isClosed) {
+          emit(state.copyWith(sequenceLength: currentLvl + 1));
           add(PlayNextRoundEvent());
         }
-      } else if (state.gameType == GameType.gameMode) {
-        int newFail = state.consecutiveFailures + 1;
-        int newLen = state.sequenceLength - 1; 
-        
-        int minLen = 3;
-        if (newLen < minLen) newLen = minLen;
-        
-        emit(state.copyWith(
-          consecutiveFailures: newFail, 
-          consecutiveSuccesses: 0, 
-          isEmphaticMode: false, 
-          sequenceLength: newLen
-        ));
-        
-        if (_prefs != null) {
-          String modeStr = state.gameMode.toString();
-          await _prefs!.setInt('${modeStr}_level', newLen);
-          await _prefs!.setInt('${modeStr}_successes', 0);
-          await _prefs!.setInt('${modeStr}_failures', newFail);
-          await _prefs!.setBool('${modeStr}_emphatic', false);
-        }
-        
-        add(PlayNextRoundEvent());
       } else {
-        await _saveSessionData(); // ULOŽENÍ PŘI PROHŘE V TRAINING MODU (Pokud uživatel v něm chybuje a chce odejít s uložením)
-        emit(state.copyWith(phase: GamePhase.gameOver));
+        int newFails = state.failsInCurrentSpan + 1;
+        if (newFails >= 3) {
+          emit(state.copyWith(phase: GamePhase.gameOver, failsInCurrentSpan: newFails));
+        } else {
+          emit(state.copyWith(phase: GamePhase.showingFailure, failsInCurrentSpan: newFails));
+          await Future.delayed(const Duration(milliseconds: 1500));
+          if (!isClosed) add(PlayNextRoundEvent());
+        }
       }
+    } 
+    else if (state.gameType == GameType.gameMode) {
+      if (isCorrect) {
+        int newConsecutive = state.consecutiveSuccesses + 1;
+        emit(state.copyWith(phase: GamePhase.showingSuccess, consecutiveSuccesses: newConsecutive, consecutiveFailures: 0));
+        await Future.delayed(const Duration(milliseconds: 1000));
+        if (!isClosed) {
+          if (newConsecutive >= 2) { 
+            emit(state.copyWith(sequenceLength: currentLvl + 1, consecutiveSuccesses: 0));
+          }
+          add(PlayNextRoundEvent());
+        }
+      } else {
+        int newConsecutiveFails = state.consecutiveFailures + 1;
+        if (newConsecutiveFails >= 2) { 
+          emit(state.copyWith(phase: GamePhase.gameOver, consecutiveFailures: newConsecutiveFails));
+        } else {
+          emit(state.copyWith(phase: GamePhase.showingFailure, consecutiveSuccesses: 0, consecutiveFailures: newConsecutiveFails));
+          await Future.delayed(const Duration(milliseconds: 1500));
+          if (!isClosed) add(PlayNextRoundEvent());
+        }
+      }
+    } 
+    else {
+      emit(state.copyWith(phase: isCorrect ? GamePhase.showingSuccess : GamePhase.showingFailure));
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (!isClosed) add(PlayNextRoundEvent());
     }
+  }
+
+  void _onSaveGameAndExit(SaveGameAndExitEvent event, Emitter<DigitSpanState> emit) {
+    _cancelRound();
+    emit(state.copyWith(phase: GamePhase.showingResults, failsInCurrentSpan: 0, consecutiveSuccesses: 0, consecutiveFailures: 0));
+  }
+
+  @override
+  Future<void> close() {
+    _cancelRound();
+    return super.close();
   }
 }

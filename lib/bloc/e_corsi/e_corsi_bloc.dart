@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vibration/vibration.dart';
+import 'package:kognisinn/env.dart';
+
 
 // --- STAVY (STATE) ---
 enum ECorsiPhase { menu, showing, input, success, failure, result, history }
@@ -128,11 +130,10 @@ class ECorsiBloc extends Bloc<ECorsiEvent, ECorsiState> {
     add(NextRound());
   }
 
-  Future<void> _onNextRound(NextRound event, Emitter<ECorsiState> emit) async {
+    Future<void> _onNextRound(NextRound event, Emitter<ECorsiState> emit) async {
     _roundId++;
     final currentRoundId = _roundId;
 
-    // Vygenerování nové sekvence bez okamžitého opakování
     List<int> newSeq = [];
     int lastBlock = -1;
     for (int i = 0; i < state.currentSpan; i++) {
@@ -144,11 +145,9 @@ class ECorsiBloc extends Bloc<ECorsiEvent, ECorsiState> {
 
     emit(state.copyWith(phase: ECorsiPhase.showing, sequence: newSeq, userInputs: [], activeBlockIndex: -1));
 
-    // Pauza před začátkem
     await Future.delayed(const Duration(seconds: 1));
-    if (currentRoundId != _roundId) return; // Kontrola, zda uživatel neukončil hru
+    if (currentRoundId != _roundId) return; 
 
-    // Smyčka pro ukazování bloků
     for (int i = 0; i < newSeq.length; i++) {
       SystemSound.play(SystemSoundType.click);
       emit(state.copyWith(activeBlockIndex: newSeq[i]));
@@ -162,14 +161,12 @@ class ECorsiBloc extends Bloc<ECorsiEvent, ECorsiState> {
       if (currentRoundId != _roundId) return;
     }
 
-    // Konec ukazování, čekáme na vstup
-    HapticFeedback.lightImpact(); // Může zůstat pro signalizaci "jsi na řadě"
+    // --- OPRAVA HAPTIKY PRO WINDOWS ---
+    if (Env.useHaptics) HapticFeedback.lightImpact();
     emit(state.copyWith(phase: ECorsiPhase.input, activeBlockIndex: -1));
   }
 
-  // OPRAVENO: Metoda je nyní async, abychom mohli sahat do SharedPreferences
-    // OPRAVENO: Metoda je nyní async, abychom mohli sahat do SharedPreferences
-      Future<void> _onBlockTapped(BlockTapped event, Emitter<ECorsiState> emit) async {
+  Future<void> _onBlockTapped(BlockTapped event, Emitter<ECorsiState> emit) async {
     if (state.phase != ECorsiPhase.input) return;
 
     SystemSound.play(SystemSoundType.click);
@@ -181,12 +178,14 @@ class ECorsiBloc extends Bloc<ECorsiEvent, ECorsiState> {
         : state.sequence[state.sequence.length - 1 - currentIndex];
 
     if (event.blockIndex != expectedBlock) {
-      // --- CHYBNÁ ODPOVEĎ (S vizuálnou pauzou 500ms) ---
-      final prefs = await SharedPreferences.getInstance();
-      bool isHaptic = prefs.getBool('global_is_haptic') ?? true;
-      if (isHaptic) {
-        int hDuration = prefs.getInt('global_haptic_duration') ?? 500;
-        Vibration.vibrate(duration: hDuration);
+      // --- OPRAVA HAPTIKY PRO WINDOWS ---
+      if (Env.useHaptics) {
+        final prefs = await SharedPreferences.getInstance();
+        bool isHaptic = prefs.getBool('global_is_haptic') ?? true;
+        if (isHaptic) {
+          int hDuration = prefs.getInt('global_haptic_duration') ?? 500;
+          Vibration.vibrate(duration: hDuration);
+        }
       }
       
       emit(state.copyWith(activeBlockIndex: event.blockIndex));
@@ -237,9 +236,7 @@ class ECorsiBloc extends Bloc<ECorsiEvent, ECorsiState> {
         emit(state.copyWith(phase: ECorsiPhase.failure, lives: newLives, activeBlockIndex: -1));
       }
     } else {
-      // --- SPRÁVNA ODPOVEĎ (Obnovená vetva) ---
       emit(state.copyWith(userInputs: newInputs, score: state.score + 1));
-      
       if (newInputs.length == state.sequence.length) {
         emit(state.copyWith(phase: ECorsiPhase.success, currentSpan: state.currentSpan + 1));
       }

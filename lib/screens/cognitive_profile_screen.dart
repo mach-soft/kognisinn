@@ -192,7 +192,8 @@ class _CognitiveProfileScreenState extends State<CognitiveProfileScreen> {
           if (val != null && !val.isNaN && !val.isInfinite) {
             // ZÁCHRANNÁ SÍŤ: Pokud je hodnota <= 20, jde o starou surovou úroveň (např. level 3)
             if (val <= 20.0) {
-              scores.add(MemoryPalaceBloc.calculateKci(val.toInt()).toDouble());
+              scores.add(MemoryPalaceBloc.calculateKci(val.toInt(), 1, false, false).toDouble());
+
             } else {
               scores.add(val); // Jinak je to už hotové KCI
             }
@@ -207,7 +208,8 @@ class _CognitiveProfileScreenState extends State<CognitiveProfileScreen> {
       
       // ZCELA BEZPEČNÉ NAČTENÍ KALIBRACE
       final calibRaw = int.tryParse(prefs.get('calib_palace')?.toString() ?? '') ?? 2;
-      return MemoryPalaceBloc.calculateKci(calibRaw).toDouble();
+      return MemoryPalaceBloc.calculateKci(calibRaw, 1, false, false).toDouble();
+
     }
 
     double getStroopScore() {

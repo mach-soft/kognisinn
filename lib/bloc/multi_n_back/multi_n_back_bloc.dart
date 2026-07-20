@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:math';
 import 'package:flutter/foundation.dart'; 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_tts/flutter_tts.dart'; 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vibration/vibration.dart';
+
+import 'package:kognisinn/env.dart'; 
 
 import 'multi_n_back_event.dart';
 import 'multi_n_back_state.dart';
@@ -18,18 +21,38 @@ class MultiNBackBloc extends Bloc<MultiNBackEvent, MultiNBackState> {
   final List<int> _sounds = [];
   final List<int> _colors = [];
   final List<int> _shapes = [];
-  final List<String> _spokenLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+  
+  // Nyní není 'final', protože se bude měnit podle jazyka
+  List<String> _spokenLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
   
   Timer? _gameTimer;
   int _actualTargets = 0; 
 
   MultiNBackBloc() : super(const MultiNBackState()) {
     on<InitMultiNBack>(_onInit);
+    
     on<SetLanguageEvent>((event, emit) async {
-      String ttsLang = event.langCode == 'en' ? "en-US" : (event.langCode == 'de' ? "de-DE" : "cs-CZ");
+      String ttsLang = "en-US";
+      
+      // Fonetický přepis písmen pro různé jazyky (řeší problém Windows enginu)
+      if (event.langCode == 'cs') {
+        ttsLang = "cs-CZ";
+        _spokenLetters = ['Á', 'Bé', 'Cé', 'Dé', 'É', 'Ef', 'Gé', 'Há', 'Í'];
+      } else if (event.langCode == 'de') {
+        ttsLang = "de-DE";
+        _spokenLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+      } else {
+        ttsLang = "en-US";
+        _spokenLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+      }
+
       try {
         await _flutterTts.setLanguage(ttsLang);
         await _flutterTts.setSpeechRate(0.5); 
+        
+        if (!kIsWeb && Platform.isWindows) {
+          await _flutterTts.awaitSpeakCompletion(true);
+        }
       } catch (e) { 
         debugPrint("Chyba TTS: $e"); 
       }
@@ -41,7 +64,6 @@ class MultiNBackBloc extends Bloc<MultiNBackEvent, MultiNBackState> {
         int adaptSubLevel = _prefs?.getInt('dnb_adapt_sublevel') ?? 0;
         bool leveledUp = _prefs?.getBool('dnb_has_leveled_up') ?? false;
 
-        // Pojistka, kdyby se v nastavení změnil počet kroků a my zůstali "mimo mapu"
         if (adaptSubLevel >= state.adaptiveStepCount) {
           adaptSubLevel = state.adaptiveStepCount - 1;
         } else if (adaptSubLevel < 0) {
@@ -76,6 +98,7 @@ class MultiNBackBloc extends Bloc<MultiNBackEvent, MultiNBackState> {
     
     on<PauseGame>((event, emit) {
       _cancelTimer();
+      _safeTtsStop();
       emit(state.copyWith(phase: MultiNBackPhase.paused));
     });
 
@@ -102,13 +125,22 @@ class MultiNBackBloc extends Bloc<MultiNBackEvent, MultiNBackState> {
     on<ClearColorError>((event, emit) => emit(state.copyWith(isColorError: false)));
     on<ClearShapeError>((event, emit) => emit(state.copyWith(isShapeError: false)));
     
-    on<ShowSettings>((event, emit) { _cancelTimer(); emit(state.copyWith(phase: MultiNBackPhase.settings)); });
+    on<ShowSettings>((event, emit) { 
+      _cancelTimer(); 
+      _safeTtsStop(); 
+      emit(state.copyWith(phase: MultiNBackPhase.settings)); 
+    });
     on<UpdateSettings>(_onUpdateSettings);
     
-    on<ShowHistory>((event, emit) { _cancelTimer(); emit(state.copyWith(phase: MultiNBackPhase.history)); });
+    on<ShowHistory>((event, emit) { 
+      _cancelTimer(); 
+      _safeTtsStop(); 
+      emit(state.copyWith(phase: MultiNBackPhase.history)); 
+    });
     
     on<ResetMultiNBack>((event, emit) { 
       _cancelTimer(); 
+      _safeTtsStop(); 
       emit(state.copyWith(phase: MultiNBackPhase.menu, score: 0)); 
     });
 
@@ -118,16 +150,38 @@ class MultiNBackBloc extends Bloc<MultiNBackEvent, MultiNBackState> {
     add(InitMultiNBack()); 
   }
 
+  // --- BEZPEČNÉ ZASTAVENÍ ZVUKU ---
+  Future<void> _safeTtsStop() async {
+    try {
+      if (kIsWeb || (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS)) {
+        await _flutterTts.stop();
+      }
+    } catch (e) {
+      debugPrint("TTS Stop Error: $e");
+    }
+  }
+
+  // --- BEZPEČNÁ HAPTIKA BEZ PÁDŮ NA DESKTOPU ---
+  void _tryVibrate() {
+    try {
+      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        if (Env.useHaptics && (_prefs?.getBool('global_is_haptic') ?? true)) {
+          Vibration.vibrate(duration: _prefs?.getInt('global_haptic_duration') ?? 500);
+        }
+      }
+    } catch (e) {
+      debugPrint("Vibrace selhala: $e");
+    }
+  }
+
   Future<void> _onInit(InitMultiNBack event, Emitter<MultiNBackState> emit) async {
     _prefs = await SharedPreferences.getInstance();
     
-    // Klasické nastavení
     final manualN = _prefs?.getInt('dnb_manual_n') ?? 2;
     final manualSpeedMs = _prefs?.getInt('dnb_manual_speed_ms') ?? 2500;
     final adaptationSpeed = _prefs?.getInt('dnb_adaptation_speed') ?? 1; 
     final activeModalities = _prefs?.getInt('dnb_active_modalities') ?? 2; 
 
-    // NOVÉ: Načtení dynamických adaptivních limitů
     final adaptiveSpeedStepMs = _prefs?.getInt('dnb_adaptive_speed_step_ms') ?? 200;
     final adaptiveSpeedMinMs = _prefs?.getInt('dnb_adaptive_speed_min_ms') ?? 1500;
     final adaptiveStepCount = _prefs?.getInt('dnb_adaptive_step_count') ?? 3;
@@ -206,12 +260,14 @@ class MultiNBackBloc extends Bloc<MultiNBackEvent, MultiNBackState> {
       adaptiveStepCount: aCount,
       adaptiveUseVar: aVar,
       activeModalities: mods,
-      currentSubLevel: 0 // Bezpečnostní reset po změně hranic
+      currentSubLevel: 0 
     ));
   }
 
   void _onStartGame(StartGame event, Emitter<MultiNBackState> emit) {
     _cancelTimer();
+    _safeTtsStop();
+    
     _positions.clear(); _sounds.clear(); _colors.clear(); _shapes.clear();
     _actualTargets = 0; 
     _prefs?.setBool('dnb_has_leveled_up', false);
@@ -267,14 +323,21 @@ class MultiNBackBloc extends Bloc<MultiNBackEvent, MultiNBackState> {
     });
   }
 
-  void _onShowStimulus(ShowStimulus event, Emitter<MultiNBackState> emit) {
+  void _onShowStimulus(ShowStimulus event, Emitter<MultiNBackState> emit) async {
     _cancelTimer();
     emit(state.copyWith(activeSquareIndex: event.pos, activeColorIndex: event.color, activeShapeIndex: event.shape));
-    _flutterTts.speak(_spokenLetters[event.sound]);
+    
+    try {
+      // Předání samotného fonetického slova (bez tečky, která způsobovala problémy)
+      _flutterTts.speak(_spokenLetters[event.sound]).catchError((e) {
+        debugPrint("Chyba při přehrávání TTS: $e");
+      });
+    } catch (e) {
+      debugPrint("Kritická chyba TTS: $e");
+    }
 
     int roundTime;
     if (state.isVariableSpeed) {
-      // VAR je uzamčený POUZE pro časy vygenerované tvým dynamickým nastavením
       List<int> possibleTimes = List.generate(
         state.adaptiveStepCount, 
         (i) => state.adaptiveSpeedMinMs + i * state.adaptiveSpeedStepMs
@@ -291,31 +354,18 @@ class MultiNBackBloc extends Bloc<MultiNBackEvent, MultiNBackState> {
     });
   }
 
-    void _handleMatchClick(String type, Emitter<MultiNBackState> emit) {
-    if (state.currentRound == 0) {
-      return;
-    }
+  void _handleMatchClick(String type, Emitter<MultiNBackState> emit) {
+    if (state.currentRound == 0) return;
     
     bool alreadyClicked = false;
     List<int> sequence = [];
     
-    if (type == 'pos') { 
-      alreadyClicked = state.positionMatchClicked; 
-      sequence = _positions; 
-    } else if (type == 'snd') { 
-      alreadyClicked = state.audioMatchClicked; 
-      sequence = _sounds; 
-    } else if (type == 'col') { 
-      alreadyClicked = state.colorMatchClicked; 
-      sequence = _colors; 
-    } else if (type == 'shp') { 
-      alreadyClicked = state.shapeMatchClicked; 
-      sequence = _shapes; 
-    }
+    if (type == 'pos') { alreadyClicked = state.positionMatchClicked; sequence = _positions; } 
+    else if (type == 'snd') { alreadyClicked = state.audioMatchClicked; sequence = _sounds; } 
+    else if (type == 'col') { alreadyClicked = state.colorMatchClicked; sequence = _colors; } 
+    else if (type == 'shp') { alreadyClicked = state.shapeMatchClicked; sequence = _shapes; }
 
-    if (alreadyClicked) {
-      return;
-    }
+    if (alreadyClicked) return;
 
     bool isMistake = false;
     int scoreChange = 0;
@@ -336,9 +386,7 @@ class MultiNBackBloc extends Bloc<MultiNBackEvent, MultiNBackState> {
     int newScore = max(0, state.score + scoreChange);
 
     if (isMistake) {
-      if (_prefs?.getBool('global_is_haptic') ?? true) {
-        Vibration.vibrate(duration: _prefs?.getInt('global_haptic_duration') ?? 500);
-      }
+      _tryVibrate(); 
       
       if (type == 'pos') { 
         emit(state.copyWith(positionMatchClicked: true, score: newScore, isPositionError: true)); 
@@ -354,19 +402,12 @@ class MultiNBackBloc extends Bloc<MultiNBackEvent, MultiNBackState> {
         Future.delayed(const Duration(milliseconds: 300), () { if (!isClosed) add(ClearShapeError()); }); 
       }
     } else {
-      // ZDE BYL TVŮJ ZDROJ CHYB Z FOTKY - Nyní je vše ve složených závorkách
-      if (type == 'pos') {
-        emit(state.copyWith(positionMatchClicked: true, score: newScore));
-      } else if (type == 'snd') {
-        emit(state.copyWith(audioMatchClicked: true, score: newScore));
-      } else if (type == 'col') {
-        emit(state.copyWith(colorMatchClicked: true, score: newScore));
-      } else if (type == 'shp') {
-        emit(state.copyWith(shapeMatchClicked: true, score: newScore));
-      }
+      if (type == 'pos') emit(state.copyWith(positionMatchClicked: true, score: newScore));
+      else if (type == 'snd') emit(state.copyWith(audioMatchClicked: true, score: newScore));
+      else if (type == 'col') emit(state.copyWith(colorMatchClicked: true, score: newScore));
+      else if (type == 'shp') emit(state.copyWith(shapeMatchClicked: true, score: newScore));
     }
   }
-
 
   void _evaluateRound(Emitter<MultiNBackState> emit) {
     if (state.currentRound <= state.currentN) return;
@@ -379,7 +420,7 @@ class MultiNBackBloc extends Bloc<MultiNBackEvent, MultiNBackState> {
     bool shMissed = state.currentModalities >= 4 && (_shapes.last == _shapes[nIndex]) && !state.shapeMatchClicked;
 
     if (pMissed || sMissed || cMissed || shMissed) {
-      if (_prefs?.getBool('global_is_haptic') ?? true) Vibration.vibrate(duration: _prefs?.getInt('global_haptic_duration') ?? 500); 
+      _tryVibrate(); 
       
       emit(state.copyWith(
         isPositionError: state.isPositionError || pMissed, 
@@ -415,7 +456,7 @@ class MultiNBackBloc extends Bloc<MultiNBackEvent, MultiNBackState> {
         ).toList().reversed.toList();
         
         for (int i = 0; i < state.adaptationSpeed - 1 && i < identicalHistory.length; i++) {
-          recentRates.add(identicalHistory[i].score / (state.totalRounds * state.currentModalities));
+          recentRates.add(identicalHistory[i].score / 100.0);
         }
       }
 
@@ -423,22 +464,21 @@ class MultiNBackBloc extends Bloc<MultiNBackEvent, MultiNBackState> {
         recentRates.sort();
         double medianRate = recentRates.length % 2 == 1 ? recentRates[recentRates.length ~/ 2] : (recentRates[recentRates.length ~/ 2 - 1] + recentRates[recentRates.length ~/ 2]) / 2.0;
 
-        // NOVÁ A ČISTÁ MATEMATIKA: Postup pouze přes sub-levely
         if (medianRate >= 0.8) {
           leveledUp = true;
           nextSubLevel++;
           if (nextSubLevel >= state.adaptiveStepCount) {
-            nextN++;         // Zdolány všechny kroky, zvedáme N
-            nextSubLevel = 0; // Začínáme znovu na novém N (nejdelší čas)
+            nextN++;         
+            nextSubLevel = 0; 
           }
         } else if (medianRate < 0.5) {
           nextSubLevel--;
           if (nextSubLevel < 0) {
             if (nextN > 1) {
-              nextN--; // Pád o N dolů
-              nextSubLevel = state.adaptiveStepCount - 1; // Spadne na nejtěžší bod předešlého N
+              nextN--; 
+              nextSubLevel = state.adaptiveStepCount - 1; 
             } else {
-              nextSubLevel = 0; // Dno - nelze klesnout (N=1, nejpomalejší čas)
+              nextSubLevel = 0; 
             }
           }
         }
@@ -449,12 +489,11 @@ class MultiNBackBloc extends Bloc<MultiNBackEvent, MultiNBackState> {
       _prefs?.setBool('dnb_has_leveled_up', leveledUp); 
     }
 
-    // Výpočet vlastností pro příští hru
     bool nextVar = state.adaptiveUseVar && (nextSubLevel == state.adaptiveStepCount - 1);
     int nextSpeed = state.adaptiveSpeedMinMs + ((state.adaptiveStepCount - 1) - nextSubLevel) * state.adaptiveSpeedStepMs;
 
-    int scaledScoreForUI = (currentSuccessRate * (state.totalRounds * state.currentModalities)).round();
-    final newItem = MultiNBackHistoryItem(DateTime.now(), state.currentN, scaledScoreForUI, state.isAdaptive, state.currentSpeedMs, state.isVariableSpeed, state.currentModalities);
+    int percentageForUI = (currentSuccessRate * 100).round().clamp(0, 100);
+    final newItem = MultiNBackHistoryItem(DateTime.now(), state.currentN, percentageForUI, state.isAdaptive, state.currentSpeedMs, state.isVariableSpeed, state.currentModalities);
     final newHistory = List<MultiNBackHistoryItem>.from(state.history)..add(newItem);
     _prefs?.setStringList('dnb_history', newHistory.map((e) => e.toRawString()).toList());
 
@@ -471,7 +510,7 @@ class MultiNBackBloc extends Bloc<MultiNBackEvent, MultiNBackState> {
       currentSubLevel: nextSubLevel,
       currentSpeedMs: nextSpeed, 
       isVariableSpeed: nextVar, 
-      score: scaledScoreForUI, 
+      score: percentageForUI, 
       history: newHistory, 
       activeSquareIndex: -1,
       dailyCount: newCount,
@@ -481,12 +520,12 @@ class MultiNBackBloc extends Bloc<MultiNBackEvent, MultiNBackState> {
 
   void _cancelTimer() {
     if (_gameTimer != null && _gameTimer!.isActive) _gameTimer!.cancel();
-    _flutterTts.stop();
   }
 
   @override
   Future<void> close() { 
     _cancelTimer(); 
+    _safeTtsStop(); 
     return super.close(); 
   }
 }

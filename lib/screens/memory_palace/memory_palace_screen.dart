@@ -141,6 +141,24 @@ class MemoryPalaceScreen extends StatelessWidget {
     );
   }
 
+  String _getDifficultyLabel(MemoryPalaceState state) {
+    if (state.itemsPerLocation >= 3 && (state.randomizeLocations || state.randomizeItems)) {
+      return 'palace_diff_expert_plus'.tr();
+    } else if (state.itemsPerLocation > 1 || state.randomizeLocations) {
+      return 'palace_diff_expert'.tr();
+    }
+    return 'palace_diff_standard'.tr();
+  }
+
+  Color _getDifficultyColor(MemoryPalaceState state) {
+    if (state.itemsPerLocation >= 3 && (state.randomizeLocations || state.randomizeItems)) {
+      return const Color(0xFFD500F9); // Fialová pro Expert+
+    } else if (state.itemsPerLocation > 1 || state.randomizeLocations) {
+      return Colors.orangeAccent; // Oranžová pro Expert
+    }
+    return const Color(0xFF00E676); // Zelená pro Standard
+  }
+
   Widget _buildBody(BuildContext context, MemoryPalaceState state, bool isDark) {
     if (state.phase == PalacePhase.menu) return _buildMenu(context, isDark);
     if (state.phase == PalacePhase.settings) return _buildSettings(context, state, isDark);
@@ -180,44 +198,74 @@ class MemoryPalaceScreen extends StatelessWidget {
             Text('palace_inst_prep'.tr(), textAlign: TextAlign.center, 
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: accentColor, letterSpacing: 3)
       ),
-          ] else if (state.currentIndex < state.currentSpan) ...[
+          ] else if (state.currentIndex < (state.currentSpan * state.itemsPerLocation)) ...[
             Text('palace_inst_encode'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black54, letterSpacing: 2)),
             const SizedBox(height: 40),
-            _neuroCard(isDark, accentColor, Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.location_on_rounded, size: 60, color: accentColor.withAlpha(150)),
-                const SizedBox(height: 10),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(state.activeLocations[state.currentIndex].tr(), style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black54)),
-                ),
-                const Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Divider(color: Colors.white12)),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(state.activeItems[state.currentIndex].tr().toUpperCase(), style: TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: textColor, shadows: [Shadow(color: accentColor.withAlpha(100), blurRadius: 20)])),
-                ),
-              ],
-            )),
+            
+            Builder(
+              builder: (context) {
+                int targetLocIndex = state.currentIndex ~/ state.itemsPerLocation;
+                String loc = state.activeLocations[targetLocIndex];
+                String item = state.activeItems[state.currentIndex];
+                
+                String locDisplay = loc.tr();
+                if (state.itemsPerLocation > 1) {
+                  int itemPos = (state.currentIndex % state.itemsPerLocation) + 1;
+                  locDisplay += " ($itemPos/${state.itemsPerLocation})";
+                }
+
+                return _neuroCard(isDark, accentColor, Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.location_on_rounded, size: 60, color: accentColor.withAlpha(150)),
+                    const SizedBox(height: 10),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(locDisplay, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black54)),
+                    ),
+                    const Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Divider(color: Colors.white12)),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(item.tr().toUpperCase(), style: TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: textColor, shadows: [Shadow(color: accentColor.withAlpha(100), blurRadius: 20)])),
+                    ),
+                  ],
+                ));
+              }
+            )
           ] else ...[
             const CircularProgressIndicator(),
           ]
         ] else if (state.phase == PalacePhase.recall) ...[
           Text('palace_inst_recall'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black54, letterSpacing: 2)),
           const SizedBox(height: 30),
-          _neuroCard(isDark, accentColor, Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.location_on_rounded, size: 30, color: accentColor),
-              const SizedBox(width: 15),
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(state.activeLocations[state.currentIndex].tr(), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: textColor)),
-                ),
-              ),
-            ],
-          ), padding: 20),
+          
+          Builder(
+            builder: (context) {
+              int targetItemIndex = state.recallQueue[state.currentIndex];
+              int targetLocIndex = targetItemIndex ~/ state.itemsPerLocation;
+              String loc = state.activeLocations[targetLocIndex];
+              
+              String locDisplay = loc.tr();
+              if (state.itemsPerLocation > 1) {
+                int itemPos = (targetItemIndex % state.itemsPerLocation) + 1;
+                locDisplay += " ($itemPos/${state.itemsPerLocation})";
+              }
+
+              return _neuroCard(isDark, accentColor, Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.location_on_rounded, size: 30, color: accentColor),
+                  const SizedBox(width: 15),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(locDisplay, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: textColor)),
+                    ),
+                  ),
+                ],
+              ), padding: 20);
+            }
+          ),
           const SizedBox(height: 50),
           Wrap(
             spacing: 16, runSpacing: 16, alignment: WrapAlignment.center,
@@ -231,51 +279,61 @@ class MemoryPalaceScreen extends StatelessWidget {
 
   Widget _buildMenu(BuildContext context, bool isDark) {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
+    final MemoryPalaceState state = context.read<MemoryPalaceBloc>().state;
+    final diffLabel = _getDifficultyLabel(state);
+    final diffColor = _getDifficultyColor(state);
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Stack(
-            alignment: Alignment.topRight,
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: SizedBox(
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 20.0, bottom: 80.0, left: 24.0, right: 24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                child: Icon(Icons.account_balance_rounded, size: 80, color: accent.withAlpha(150)),
-              ),
-              Positioned(
-                top: 0, right: 0,
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: () => _showModuleInfoDialog(context, isDark, accent),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: accent.withAlpha(20),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: accent.withAlpha(50)),
+              Stack(
+                alignment: Alignment.topRight,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    child: Icon(Icons.account_balance_rounded, size: 80, color: accent.withAlpha(150)),
+                  ),
+                  Positioned(
+                    top: 0, right: 0,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () => _showModuleInfoDialog(context, isDark, accent),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: accent.withAlpha(20),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: accent.withAlpha(50)),
+                          ),
+                          child: Icon(Icons.help_outline_rounded, size: 20, color: accent),
+                        ),
                       ),
-                      child: Icon(Icons.help_outline_rounded, size: 20, color: accent),
                     ),
                   ),
-                ),
+                ],
               ),
+              const SizedBox(height: 40),
+              
+              _menuBtn(context, 'global_mode_adaptive'.tr(), () => context.read<MemoryPalaceBloc>().add(StartAdaptive()), isDark, isPrimary: true, icon: Icons.auto_graph_rounded, badgeText: diffLabel, badgeColor: diffColor),
+              const SizedBox(height: 16),
+              _menuBtn(context, 'ds_mode_free'.tr(), () => context.read<MemoryPalaceBloc>().add(StartFreeTraining()), isDark, icon: Icons.tune_rounded, badgeText: diffLabel, badgeColor: diffColor),
+              const SizedBox(height: 40),
+              _menuBtn(context, 'global_analytics'.tr(), () => context.read<MemoryPalaceBloc>().add(ShowPalaceHistory()), isDark, icon: Icons.insights_rounded, isSecondary: true),
+              const SizedBox(height: 16),
+              _menuBtn(context, 'global_settings'.tr(), () => context.read<MemoryPalaceBloc>().add(ShowSettings()), isDark, icon: Icons.settings_rounded, isSecondary: true),
+              const SizedBox(height: 32),
+              _menuBtn(context, 'global_exit_module'.tr(), () => Navigator.pop(context), isDark, icon: Icons.power_settings_new_rounded, isDanger: true),
             ],
           ),
-          const SizedBox(height: 40),
-          
-          _menuBtn(context, 'global_mode_adaptive'.tr(), () => context.read<MemoryPalaceBloc>().add(StartAdaptive()), isDark, isPrimary: true, icon: Icons.auto_graph_rounded),
-          const SizedBox(height: 16),
-          _menuBtn(context, 'ds_mode_free'.tr(), () => context.read<MemoryPalaceBloc>().add(StartFreeTraining()), isDark, icon: Icons.tune_rounded),
-          const SizedBox(height: 40),
-          _menuBtn(context, 'global_analytics'.tr(), () => context.read<MemoryPalaceBloc>().add(ShowPalaceHistory()), isDark, icon: Icons.insights_rounded, isSecondary: true),
-          const SizedBox(height: 16),
-          _menuBtn(context, 'global_settings'.tr(), () => context.read<MemoryPalaceBloc>().add(ShowSettings()), isDark, icon: Icons.settings_rounded, isSecondary: true),
-          const SizedBox(height: 32),
-          _menuBtn(context, 'global_exit_module'.tr(), () => Navigator.pop(context), isDark, icon: Icons.power_settings_new_rounded, isDanger: true),
-        ],
+        ),
       ),
     );
   }
@@ -284,47 +342,99 @@ class MemoryPalaceScreen extends StatelessWidget {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
     final Color textColor = isDark ? Colors.white : const Color(0xFF1E293B);
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _neuroCard(isDark, accent, Column(
-          children: [
-            Text('palace_settings_global'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2)),
-            const SizedBox(height: 30),
-            
-            Text('palace_settings_start_adaptive'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)),
-            Row(
-              children: [
-                Expanded(
-                  child: Slider(
-                    value: state.defaultAdaptiveSpan.toDouble(), min: 1, max: 10, divisions: 9,
-                    activeColor: accent, inactiveColor: isDark ? Colors.white12 : Colors.black12,
-                    onChanged: (val) => context.read<MemoryPalaceBloc>().add(UpdateSettings(span: val.round())),
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: SizedBox(
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 20.0, bottom: 80.0, left: 24.0, right: 24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _neuroCard(isDark, accent, Column(
+                children: [
+                  Text('palace_settings_global'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2)),
+                  const SizedBox(height: 30),
+                  
+                  Text('palace_settings_start_adaptive'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: state.defaultAdaptiveSpan.toDouble(), min: 1, max: 10, divisions: 9,
+                          activeColor: accent, inactiveColor: isDark ? Colors.white12 : Colors.black12,
+                          onChanged: (val) => context.read<MemoryPalaceBloc>().add(UpdateSettings(span: val.round())),
+                        ),
+                      ),
+                      Text("${state.defaultAdaptiveSpan}", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor)),
+                    ],
                   ),
-                ),
-                Text("${state.defaultAdaptiveSpan}", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor)),
-              ],
-            ),
-            const Divider(color: Colors.white12, height: 40),
-            
-            Text('palace_settings_time'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)),
-            Row(
-              children: [
-                Expanded(
-                  child: Slider(
-                    value: state.defaultSpeedMs / 1000, min: 1.0, max: 5.0, divisions: 8,
-                    activeColor: accent, inactiveColor: isDark ? Colors.white12 : Colors.black12,
-                    onChanged: (val) => context.read<MemoryPalaceBloc>().add(UpdateSettings(speedMs: (val * 1000).round())),
+                  const Divider(color: Colors.white12, height: 30),
+                  
+                  Text('palace_settings_time'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: state.defaultSpeedMs / 1000, min: 1.0, max: 5.0, divisions: 8,
+                          activeColor: accent, inactiveColor: isDark ? Colors.white12 : Colors.black12,
+                          onChanged: (val) => context.read<MemoryPalaceBloc>().add(UpdateSettings(speedMs: (val * 1000).round())),
+                        ),
+                      ),
+                      Text("${(state.defaultSpeedMs / 1000).toStringAsFixed(1)}s", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor)),
+                    ],
                   ),
-                ),
-                Text("${(state.defaultSpeedMs / 1000).toStringAsFixed(1)}s", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor)),
-              ],
-            ),
-          ]
-        ), padding: 24),
-        const SizedBox(height: 50),
-        _menuBtn(context, 'global_btn_save_back'.tr(), () => context.read<MemoryPalaceBloc>().add(ResetPalace()), isDark, isPrimary: true),
-      ],
+                  const Divider(color: Colors.white12, height: 30),
+
+                  Text('palace_settings_items_per_loc'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: state.itemsPerLocation.toDouble(), min: 1, max: 5, divisions: 4,
+                          activeColor: Colors.orangeAccent, inactiveColor: isDark ? Colors.white12 : Colors.black12,
+                          onChanged: (val) {
+                            context.read<MemoryPalaceBloc>().add(UpdateSettings(itemsPerLoc: val.round()));
+                            if (val.round() == 1 && state.randomizeItems) {
+                              context.read<MemoryPalaceBloc>().add(UpdateSettings(randItems: false));
+                            }
+                          },
+                        ),
+                      ),
+                      Text("${state.itemsPerLocation}", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    activeTrackColor: Colors.orangeAccent,
+                    title: Text('palace_settings_rand_locs'.tr(), style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor)),
+                    value: state.randomizeLocations,
+                    onChanged: (val) => context.read<MemoryPalaceBloc>().add(UpdateSettings(randLocs: val)),
+                  ),
+                  
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    activeTrackColor: Colors.orangeAccent,
+                    title: Text('palace_settings_rand_items'.tr(), style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textColor)),
+                    value: state.randomizeItems,
+                    onChanged: (val) {
+                      context.read<MemoryPalaceBloc>().add(UpdateSettings(randItems: val));
+                      if (val == true && state.itemsPerLocation == 1) {
+                        context.read<MemoryPalaceBloc>().add(UpdateSettings(itemsPerLoc: 2));
+                      }
+                    },
+                  ),
+
+                ]
+              ), padding: 24),
+              const SizedBox(height: 40),
+              _menuBtn(context, 'global_btn_save_back'.tr(), () => context.read<MemoryPalaceBloc>().add(ResetPalace()), isDark, isPrimary: true),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -332,70 +442,86 @@ class MemoryPalaceScreen extends StatelessWidget {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
     final Color textColor = isDark ? Colors.white : const Color(0xFF1E293B);
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _neuroCard(isDark, accent, Column(
-          children: [
-            Text('palace_setup_title'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2)),
-            const SizedBox(height: 30),
-            
-            Text('palace_setup_capacity'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)),
-            Row(
-              children: [
-                Expanded(
-                  child: Slider(
-                    value: state.currentSpan.toDouble(), min: 1, max: 18, divisions: 17,
-                    activeColor: accent, inactiveColor: isDark ? Colors.white12 : Colors.black12,
-                    onChanged: (val) => context.read<MemoryPalaceBloc>().add(UpdateSetup(span: val.round())),
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: SizedBox(
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 20.0, bottom: 80.0, left: 24.0, right: 24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _neuroCard(isDark, accent, Column(
+                children: [
+                  Text('palace_setup_title'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2)),
+                  const SizedBox(height: 30),
+                  
+                  Text('palace_setup_capacity'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: state.currentSpan.toDouble(), min: 1, max: 18, divisions: 17,
+                          activeColor: accent, inactiveColor: isDark ? Colors.white12 : Colors.black12,
+                          onChanged: (val) => context.read<MemoryPalaceBloc>().add(UpdateSetup(span: val.round())),
+                        ),
+                      ),
+                      Text("${state.currentSpan}", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor)),
+                    ],
                   ),
-                ),
-                Text("${state.currentSpan}", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor)),
-              ],
-            ),
-            const Divider(color: Colors.white12, height: 40),
-            
-            Text('palace_setup_time_item'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)),
-            Row(
-              children: [
-                Expanded(
-                  child: Slider(
-                    value: state.currentSpeedMs / 1000, min: 1.0, max: 5.0, divisions: 8,
-                    activeColor: accent, inactiveColor: isDark ? Colors.white12 : Colors.black12,
-                    onChanged: (val) => context.read<MemoryPalaceBloc>().add(UpdateSetup(speedMs: (val * 1000).round())),
+                  const Divider(color: Colors.white12, height: 40),
+                  
+                  Text('palace_setup_time_item'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: state.currentSpeedMs / 1000, min: 1.0, max: 5.0, divisions: 8,
+                          activeColor: accent, inactiveColor: isDark ? Colors.white12 : Colors.black12,
+                          onChanged: (val) => context.read<MemoryPalaceBloc>().add(UpdateSetup(speedMs: (val * 1000).round())),
+                        ),
+                      ),
+                      Text("${(state.currentSpeedMs / 1000).toStringAsFixed(1)}s", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor)),
+                    ],
                   ),
-                ),
-                Text("${(state.currentSpeedMs / 1000).toStringAsFixed(1)}s", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor)),
-              ],
-            ),
-          ]
-        ), padding: 24),
-        const SizedBox(height: 50),
-        _menuBtn(context, 'palace_btn_start_round'.tr(), () => context.read<MemoryPalaceBloc>().add(NextRound()), isDark, isPrimary: true, icon: Icons.play_arrow_rounded),
-        const SizedBox(height: 16),
-        _menuBtn(context, 'global_btn_to_menu'.tr(), () => context.read<MemoryPalaceBloc>().add(ResetPalace()), isDark, isSecondary: true),
-      ],
+                ]
+              ), padding: 24),
+              const SizedBox(height: 50),
+              _menuBtn(context, 'palace_btn_start_round'.tr(), () => context.read<MemoryPalaceBloc>().add(NextRound()), isDark, isPrimary: true, icon: Icons.play_arrow_rounded),
+              const SizedBox(height: 16),
+              _menuBtn(context, 'global_btn_to_menu'.tr(), () => context.read<MemoryPalaceBloc>().add(ResetPalace()), isDark, isSecondary: true),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildMessage(BuildContext context, String text, IconData icon, Color color, bool isDark, bool isSuccess, MemoryPalaceState state) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(30),
-            decoration: BoxDecoration(shape: BoxShape.circle, color: color.withAlpha(20), boxShadow: [BoxShadow(color: color.withAlpha(40), blurRadius: 40)]),
-            child: Icon(icon, size: 80, color: color),
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: SizedBox(
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 20.0, bottom: 80.0, left: 24.0, right: 24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(30),
+                decoration: BoxDecoration(shape: BoxShape.circle, color: color.withAlpha(20), boxShadow: [BoxShadow(color: color.withAlpha(40), blurRadius: 40)]),
+                child: Icon(icon, size: 80, color: color),
+              ),
+              const SizedBox(height: 30),
+              Text(text, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 2, color: color)),
+              const SizedBox(height: 50),
+              if (state.isAdaptive)
+                _menuBtn(context, isSuccess ? 'palace_btn_next_room'.tr() : 'palace_btn_repeat'.tr(), () => context.read<MemoryPalaceBloc>().add(NextRound()), isDark, isPrimary: true)
+              else
+                _menuBtn(context, 'palace_btn_setup_next'.tr(), () => context.read<MemoryPalaceBloc>().add(ShowSetup()), isDark, isPrimary: true),
+            ],
           ),
-          const SizedBox(height: 30),
-          Text(text, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 2, color: color)),
-          const SizedBox(height: 50),
-          if (state.isAdaptive)
-            _menuBtn(context, isSuccess ? 'palace_btn_next_room'.tr() : 'palace_btn_repeat'.tr(), () => context.read<MemoryPalaceBloc>().add(NextRound()), isDark, isPrimary: true)
-          else
-            _menuBtn(context, 'palace_btn_setup_next'.tr(), () => context.read<MemoryPalaceBloc>().add(ShowSetup()), isDark, isPrimary: true),
-        ],
+        ),
       ),
     );
   }
@@ -405,10 +531,9 @@ class MemoryPalaceScreen extends StatelessWidget {
 
     final displayData = history.length > 10 ? history.sublist(history.length - 10) : history;
     
-    // ZMĚNA 1: Volání globální statické metody
     List<double> yValues = displayData.map((e) {
       if (showGamifiedValues) {
-        return MemoryPalaceBloc.calculateKci(e.score).toDouble();
+        return MemoryPalaceBloc.calculateKci(e.score, e.itemsPerLocation, e.randomizeLocations, e.randomizeItems).toDouble();
       } else {
         return e.maxSpan.toDouble();
       }
@@ -514,41 +639,44 @@ class MemoryPalaceScreen extends StatelessWidget {
 
         return SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(height: 40),
-              Icon(Icons.hub_rounded, size: 80, color: accent),
-              const SizedBox(height: 30),
-              Text('ds_capacity_empty'.tr(), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 3, color: isDark ? Colors.white54 : Colors.black54)),
-              const SizedBox(height: 10),
-              Text('palace_res_capacity'.tr(args: [state.currentSpan.toString()]), style: TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B))),
-              
-              if (showGamified)
-                // ZMĚNA 2: Volání globální statické metody
-                Text('global_score_kci'.tr(args: [MemoryPalaceBloc.calculateKci(state.score).toString()]), 
-                  style: TextStyle(fontSize: 18, color: accent, fontWeight: FontWeight.bold))
-              else
-                Text('palace_res_score'.tr(args: [state.score.toString()]), 
-                  style: TextStyle(fontSize: 18, color: accent, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 40),
+          child: SizedBox(
+            width: double.infinity,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 20.0, bottom: 80.0, left: 24.0, right: 24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 40),
+                  Icon(Icons.hub_rounded, size: 80, color: accent),
+                  const SizedBox(height: 30),
+                  Text('ds_capacity_empty'.tr(), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 3, color: isDark ? Colors.white54 : Colors.black54)),
+                  const SizedBox(height: 10),
+                  Text('palace_res_capacity'.tr(args: [state.currentSpan.toString()]), style: TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B))),
+                  
+                  if (showGamified)
+                    Text('global_score_kci'.tr(args: [MemoryPalaceBloc.calculateKci(state.score, state.itemsPerLocation, state.randomizeLocations, state.randomizeItems).toString()]), 
+                      style: TextStyle(fontSize: 18, color: accent, fontWeight: FontWeight.bold))
+                  else
+                    Text('palace_res_score'.tr(args: [state.score.toString()]), 
+                      style: TextStyle(fontSize: 18, color: accent, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 40),
 
-              if (adaptiveHistory.isNotEmpty) ...[
-                Align(
-                  alignment: Alignment.centerLeft, 
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 12.0),
-                    child: Text('global_progress'.tr(), style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: isDark ? Colors.white : Colors.black)),
-                  )
-                ),
-                _buildPerformanceChart(adaptiveHistory, 'global_mode_adaptive'.tr(), isDark, accent, showGamified),
-              ],
+                  if (adaptiveHistory.isNotEmpty) ...[
+                    Align(
+                      alignment: Alignment.centerLeft, 
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: Text('global_progress'.tr(), style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: isDark ? Colors.white : Colors.black)),
+                      )
+                    ),
+                    _buildPerformanceChart(adaptiveHistory, 'global_mode_adaptive'.tr(), isDark, accent, showGamified),
+                  ],
 
-              const SizedBox(height: 30),
-              _menuBtn(context, 'global_btn_to_menu'.tr(), () => context.read<MemoryPalaceBloc>().add(ResetPalace()), isDark, isPrimary: true),
-              const SizedBox(height: 40),
-            ],
+                  const SizedBox(height: 30),
+                  _menuBtn(context, 'global_btn_to_menu'.tr(), () => context.read<MemoryPalaceBloc>().add(ResetPalace()), isDark, isPrimary: true),
+                ],
+              ),
+            ),
           ),
         );
       },
@@ -613,8 +741,7 @@ class MemoryPalaceScreen extends StatelessWidget {
                   builder: (context) {
                     String subScore;
                     if (showGamified) {
-                      // ZMĚNA 3: Volání globální statické metody
-                      String kciText = 'global_score_kci'.tr(args: [MemoryPalaceBloc.calculateKci(item.score).toString()]);
+                      String kciText = 'global_score_kci'.tr(args: [MemoryPalaceBloc.calculateKci(item.score, item.itemsPerLocation, item.randomizeLocations, item.randomizeItems).toString()]);
                       subScore = '${item.score} | $kciText';
                     } else {
                       subScore = item.score.toString();
@@ -647,7 +774,7 @@ class MemoryPalaceScreen extends StatelessWidget {
     );
   }
 
-  Widget _menuBtn(BuildContext context, String label, VoidCallback onTap, bool isDark, {double width = 320, bool isPrimary = false, bool isSecondary = false, bool isDanger = false, IconData? icon}) {
+  Widget _menuBtn(BuildContext context, String label, VoidCallback onTap, bool isDark, {double width = 320, bool isPrimary = false, bool isSecondary = false, bool isDanger = false, IconData? icon, String? badgeText, Color? badgeColor}) {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
     final Color textColor = isDark ? (isSecondary ? Colors.white54 : Colors.white) : (isSecondary ? Colors.black54 : const Color(0xFF1E293B));
     
@@ -668,11 +795,30 @@ class MemoryPalaceScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: isDanger ? Colors.redAccent.withAlpha(50) : (isSecondary ? (isDark ? Colors.white12 : Colors.black12) : (isDark ? accent.withAlpha(40) : accent.withAlpha(30))), width: 1.5),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
               children: [
-                if (icon != null) ...[Icon(icon, size: 20, color: isDanger ? Colors.redAccent : textColor), const SizedBox(width: 12)],
-                Flexible(child: FittedBox(fit: BoxFit.scaleDown, child: Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: isDanger ? Colors.redAccent : textColor, letterSpacing: 1.5)))),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (icon != null) ...[Icon(icon, size: 20, color: isDanger ? Colors.redAccent : textColor), const SizedBox(width: 12)],
+                    Flexible(child: FittedBox(fit: BoxFit.scaleDown, child: Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: isDanger ? Colors.redAccent : textColor, letterSpacing: 1.5)))),
+                  ],
+                ),
+                if (badgeText != null && badgeColor != null)
+                  Positioned(
+                    top: -1.5, right: -1.5,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: badgeColor.withAlpha(isDark ? 50 : 30),
+                        borderRadius: const BorderRadius.only(topRight: Radius.circular(20), bottomLeft: Radius.circular(10)),
+                        border: Border.all(color: badgeColor.withAlpha(80)),
+                      ),
+                      child: Text(badgeText, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: badgeColor, letterSpacing: 1.2)),
+                    ),
+                  ),
               ],
             ),
           ),

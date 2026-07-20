@@ -1,11 +1,8 @@
 import 'package:equatable/equatable.dart';
 
 enum GameType { fastTest, gameMode, training }
-
 enum GameMode { forward, reverse, ascending }
-
 enum SoundSetting { numbersOnly, numbersAndFeedback, off }
-
 enum GamePhase { splash, menu, choosingMode, choosingLevel, showingSequence, waitingForInput, showingSuccess, showingFailure, gameOver, showingResults, settings }
 
 class GameResult extends Equatable {
@@ -16,12 +13,10 @@ class GameResult extends Equatable {
 
   const GameResult(this.timestamp, this.isCorrect, this.mode, this.level);
 
-  // Převod výsledku na text (pro uložení do paměti)
   String toPrefsString() {
     return '${timestamp.toIso8601String()}|$isCorrect|${mode.name}|$level';
   }
 
-  // Převod z textu zpět na objekt (při startu aplikace)
   static GameResult fromPrefsString(String str) {
     try {
       final parts = str.split('|');
@@ -32,7 +27,7 @@ class GameResult extends Equatable {
         int.parse(parts[3]),
       );
     } catch(e) {
-      return GameResult(DateTime.now(), false, GameMode.forward, 1); // Záchranná brzda při chybě čtení
+      return GameResult(DateTime.now(), false, GameMode.forward, 1);
     }
   }
 
@@ -50,7 +45,6 @@ class DigitSpanState extends Equatable {
   final int consecutiveFailures;
   final int failsInCurrentSpan; 
   
-  // Sledování maxima pro aktuální relaci (pro uložení KCI a historie na konci)
   final int maxSpanInCurrentSession;
   
   final bool isEmphaticMode;

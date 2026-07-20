@@ -22,7 +22,7 @@ class MultiNBackScreen extends StatelessWidget {
     Icons.change_history, Icons.hexagon, Icons.diamond, Icons.shield, Icons.cloud
   ];
 
-  Future<void> _saveTestToProfile(int nLevel, int score, int maxScore, bool isVar, int speedMs, int modalities) async {
+  Future<void> _saveTestToProfile(int nLevel, int percentageScore, bool isVar, int speedMs, int modalities) async {
     final prefs = await SharedPreferences.getInstance();
     
     double fT = 1.0;
@@ -39,7 +39,7 @@ class MultiNBackScreen extends StatelessWidget {
 
     // Multiplikátor zátěže (Dual = 1.0x, Triple = 1.5x, Quad = 2.0x)
     double modalityFactor = modalities / 2.0;
-    double sSuccess = maxScore > 0 ? (score / maxScore) : 0.0;
+    double sSuccess = percentageScore / 100.0; 
     
     // Zapojení multiplikátoru do jádra KCI
     double nEff = nLevel * modalityFactor * fT * (1 + 0.5 * sigmaT) * math.pow((sSuccess / 0.8), 2);
@@ -180,19 +180,19 @@ class MultiNBackScreen extends StatelessWidget {
         listener: (context, state) async {
           if (state.isAdaptive && state.history.isNotEmpty) {
             final lastItem = state.history.last;
-            int maxScore = state.totalRounds * lastItem.modalities;
-            await _saveTestToProfile(lastItem.nLevel, lastItem.score, maxScore, lastItem.isVariableSpeed, lastItem.speedMs, lastItem.modalities);
+            await _saveTestToProfile(lastItem.nLevel, lastItem.score, lastItem.isVariableSpeed, lastItem.speedMs, lastItem.modalities);
           }
         },
         builder: (context, state) {
-          // ignore: deprecated_member_use
-          return WillPopScope(
-            onWillPop: () async {
-              if (state.phase == MultiNBackPhase.playing) { context.read<MultiNBackBloc>().add(PauseGame()); return false; } 
-              else if (state.phase == MultiNBackPhase.paused) { context.read<MultiNBackBloc>().add(ResumeGame()); return false; } 
-              else if (state.phase == MultiNBackPhase.menu || state.phase == MultiNBackPhase.preTraining) { if (state.phase == MultiNBackPhase.preTraining) { context.read<MultiNBackBloc>().add(ResetMultiNBack()); return false; } return true; } 
-              else if (state.phase == MultiNBackPhase.result || state.phase == MultiNBackPhase.history || state.phase == MultiNBackPhase.settings) { context.read<MultiNBackBloc>().add(ResetMultiNBack()); return false; } 
-              else { bool quit = await _showInterruptDialog(context, isDark); if (!context.mounted) return false; if (quit) context.read<MultiNBackBloc>().add(ResetMultiNBack()); return false; }
+          return PopScope(
+            canPop: false,
+            onPopInvokedWithResult: (bool didPop, Object? result) async {
+              if (didPop) return;
+              if (state.phase == MultiNBackPhase.playing) { context.read<MultiNBackBloc>().add(PauseGame()); return; } 
+              else if (state.phase == MultiNBackPhase.paused) { context.read<MultiNBackBloc>().add(ResumeGame()); return; } 
+              else if (state.phase == MultiNBackPhase.menu || state.phase == MultiNBackPhase.preTraining) { if (state.phase == MultiNBackPhase.preTraining) { context.read<MultiNBackBloc>().add(ResetMultiNBack()); return; } Navigator.of(context).pop(); return; } 
+              else if (state.phase == MultiNBackPhase.result || state.phase == MultiNBackPhase.history || state.phase == MultiNBackPhase.settings) { context.read<MultiNBackBloc>().add(ResetMultiNBack()); return; } 
+              else { bool quit = await _showInterruptDialog(context, isDark); if (!context.mounted) return; if (quit) context.read<MultiNBackBloc>().add(ResetMultiNBack()); return; }
             },
             child: Scaffold(
               body: Container(
@@ -252,6 +252,7 @@ class MultiNBackScreen extends StatelessWidget {
     String speedStr = state.isVariableSpeed ? 'VAR' : '${(state.currentSpeedMs / 1000).toStringAsFixed(1)}s';
     String statusText = 'N=${state.currentN} | $speedStr | ${state.currentRound}/${state.totalRounds}';
 
+    // Samotná hra - neobalujeme do scrollView, aby se nerozhodilo rozložení prvků
     return SizedBox(
       width: double.infinity,
       child: Column(
@@ -353,51 +354,71 @@ class MultiNBackScreen extends StatelessWidget {
   }
 
   Widget _buildPaused(BuildContext context, MultiNBackState state, bool isDark) { 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center, 
-        children: [
-          Icon(Icons.pause_circle_filled_rounded, size: 80, color: isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF)), 
-          const SizedBox(height: 30), 
-          Text('global_training_paused'.tr().toUpperCase(), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: isDark ? Colors.white : Colors.black87, letterSpacing: 2)), 
-          const SizedBox(height: 50), 
-          _menuBtn(context, 'global_btn_continue'.tr(), () => context.read<MultiNBackBloc>().add(ResumeGame()), isDark, isPrimary: true, icon: Icons.play_arrow_rounded), 
-          const SizedBox(height: 16), 
-          _menuBtn(context, 'global_btn_exit'.tr(), () async { 
-            bool quit = await _showInterruptDialog(context, isDark); 
-            if (quit && context.mounted) context.read<MultiNBackBloc>().add(ResetMultiNBack()); 
-          }, isDark, isDanger: true, icon: Icons.stop_rounded)
-        ]
-      )
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 40.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center, 
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(Icons.pause_circle_filled_rounded, size: 80, color: isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF)), 
+                const SizedBox(height: 30), 
+                Text('global_training_paused'.tr().toUpperCase(), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: isDark ? Colors.white : Colors.black87, letterSpacing: 2)), 
+                const SizedBox(height: 50), 
+                _menuBtn(context, 'global_btn_continue'.tr(), () => context.read<MultiNBackBloc>().add(ResumeGame()), isDark, isPrimary: true, icon: Icons.play_arrow_rounded), 
+                const SizedBox(height: 16), 
+                _menuBtn(context, 'global_btn_exit'.tr(), () async { 
+                  bool quit = await _showInterruptDialog(context, isDark); 
+                  if (quit && context.mounted) context.read<MultiNBackBloc>().add(ResetMultiNBack()); 
+                }, isDark, isDanger: true, icon: Icons.stop_rounded)
+              ]
+            ),
+          ),
+        )
+      ]
     ); 
   }
 
   Widget _buildPreTraining(BuildContext context, MultiNBackState state, bool isDark) { 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center, 
-        children: [
-          Icon(state.isAdaptive ? Icons.auto_graph_rounded : Icons.tune_rounded, size: 80, color: (isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF)).withAlpha(150)), 
-          const SizedBox(height: 30), 
-          Text(state.isAdaptive ? 'global_mode_adaptive'.tr() : 'global_mode_manual'.tr(), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B), letterSpacing: 2)), 
-          const SizedBox(height: 15), 
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), 
-            decoration: BoxDecoration(color: isDark ? Colors.white.withAlpha(5) : Colors.black.withAlpha(5), borderRadius: BorderRadius.circular(16), border: Border.all(color: isDark ? Colors.white12 : Colors.black12)), 
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 40.0),
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center, 
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text('${'dnb_settings_level'.tr()}: N=${state.isAdaptive ? state.currentN : state.manualN}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF), letterSpacing: 1.5)), 
-                const SizedBox(height: 4), 
-                Text('${'dnb_settings_speed'.tr()}: ${(state.isAdaptive ? state.isVariableSpeed : false) ? 'VAR' : '${((state.isAdaptive ? state.currentSpeedMs : state.manualSpeedMs) / 1000).toStringAsFixed(1)}s'}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? Colors.white54 : Colors.black54, letterSpacing: 1.2))
+                Icon(state.isAdaptive ? Icons.auto_graph_rounded : Icons.tune_rounded, size: 80, color: (isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF)).withAlpha(150)), 
+                const SizedBox(height: 30), 
+                Text(state.isAdaptive ? 'global_mode_adaptive'.tr() : 'global_mode_manual'.tr(), style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B), letterSpacing: 2)), 
+                const SizedBox(height: 15), 
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), 
+                  decoration: BoxDecoration(color: isDark ? Colors.white.withAlpha(5) : Colors.black.withAlpha(5), borderRadius: BorderRadius.circular(16), border: Border.all(color: isDark ? Colors.white12 : Colors.black12)), 
+                  child: Column(
+                    children: [
+                      Text('${'dnb_settings_level'.tr()}: N=${state.isAdaptive ? state.currentN : state.manualN}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF), letterSpacing: 1.5)), 
+                      const SizedBox(height: 4), 
+                      Text('${'dnb_settings_speed'.tr()}: ${(state.isAdaptive ? state.isVariableSpeed : false) ? 'VAR' : '${((state.isAdaptive ? state.currentSpeedMs : state.manualSpeedMs) / 1000).toStringAsFixed(1)}s'}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? Colors.white54 : Colors.black54, letterSpacing: 1.2))
+                    ]
+                  )
+                ), 
+                const SizedBox(height: 50), 
+                _menuBtn(context, 'global_btn_start_training'.tr(), () => context.read<MultiNBackBloc>().add(StartGame(adaptive: state.isAdaptive)), isDark, isPrimary: true, icon: Icons.play_arrow_rounded), 
+                const SizedBox(height: 16), 
+                _menuBtn(context, 'global_btn_back'.tr(), () => context.read<MultiNBackBloc>().add(ResetMultiNBack()), isDark, isSecondary: true)
               ]
-            )
-          ), 
-          const SizedBox(height: 50), 
-          _menuBtn(context, 'global_btn_start_training'.tr(), () => context.read<MultiNBackBloc>().add(StartGame(adaptive: state.isAdaptive)), isDark, isPrimary: true, icon: Icons.play_arrow_rounded), 
-          const SizedBox(height: 16), 
-          _menuBtn(context, 'global_btn_back'.tr(), () => context.read<MultiNBackBloc>().add(ResetMultiNBack()), isDark, isSecondary: true)
-        ]
-      )
+            ),
+          ),
+        )
+      ]
     ); 
   }
 
@@ -407,111 +428,118 @@ class MultiNBackScreen extends StatelessWidget {
     final Color borderColor = isDark ? Colors.white12 : accent.withAlpha(30);
     final Color textColor = isDark ? Colors.white : const Color(0xFF1E293B);
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(), 
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center, 
-          children: [
-            Stack(
-              alignment: Alignment.topRight,
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 40.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start, 
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  child: Icon(Icons.memory_rounded, size: 80, color: accent.withAlpha(150)),
-                ),
-                Positioned(
-                  top: 0, right: 0,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(20),
-                      onTap: () => _showModuleInfoDialog(context, isDark, accent),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: accent.withAlpha(20),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: accent.withAlpha(50)),
-                        ),
-                        child: Icon(Icons.help_outline_rounded, size: 20, color: accent),
-                      ),
+                Stack(
+                  alignment: Alignment.topRight,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      child: Icon(Icons.memory_rounded, size: 80, color: accent.withAlpha(150)),
                     ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 30),
-
-            Container(
-              width: 320,
-              margin: const EdgeInsets.only(bottom: 32),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: borderColor, width: 1.5),
-              ),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 50, height: 50,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        CircularProgressIndicator(
-                          value: state.dailyGoal > 0 ? (state.dailyCount / state.dailyGoal).clamp(0.0, 1.0) : 0,
-                          backgroundColor: accent.withAlpha(30),
-                          color: state.dailyCount >= state.dailyGoal ? Colors.greenAccent : accent,
-                          strokeWidth: 5, strokeCap: StrokeCap.round,
-                        ),
-                        Center(
-                          child: Icon(
-                            state.dailyCount >= state.dailyGoal ? Icons.check_rounded : Icons.fitness_center_rounded, 
-                            color: state.dailyCount >= state.dailyGoal ? Colors.greenAccent : accent, 
-                            size: 20
+                    Positioned(
+                      top: 0, right: 0,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => _showModuleInfoDialog(context, isDark, accent),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: accent.withAlpha(20),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: accent.withAlpha(50)),
+                            ),
+                            child: Icon(Icons.help_outline_rounded, size: 20, color: accent),
                           ),
                         ),
-                      ],
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 30),
+
+                Container(
+                  width: 320,
+                  margin: const EdgeInsets.only(bottom: 32),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: borderColor, width: 1.5),
                   ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'dnb_daily_progress'.tr().toUpperCase(),
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: accent, letterSpacing: 1.5),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic,
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 50, height: 50,
+                        child: Stack(
+                          fit: StackFit.expand,
                           children: [
-                            Text('${state.dailyCount}', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: textColor)),
-                            Text(' / ${state.dailyGoal}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white54 : Colors.black54)),
+                            CircularProgressIndicator(
+                              value: state.dailyGoal > 0 ? (state.dailyCount / state.dailyGoal).clamp(0.0, 1.0) : 0,
+                              backgroundColor: accent.withAlpha(30),
+                              color: state.dailyCount >= state.dailyGoal ? Colors.greenAccent : accent,
+                              strokeWidth: 5, strokeCap: StrokeCap.round,
+                            ),
+                            Center(
+                              child: Icon(
+                                state.dailyCount >= state.dailyGoal ? Icons.check_rounded : Icons.fitness_center_rounded, 
+                                color: state.dailyCount >= state.dailyGoal ? Colors.greenAccent : accent, 
+                                size: 20
+                              ),
+                            ),
                           ],
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'dnb_daily_progress'.tr().toUpperCase(),
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: accent, letterSpacing: 1.5),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Text('${state.dailyCount}', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: textColor)),
+                                Text(' / ${state.dailyGoal}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isDark ? Colors.white54 : Colors.black54)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                
+                _menuBtn(context, 'global_mode_adaptive'.tr(), () => context.read<MultiNBackBloc>().add(const ShowPreTraining(adaptive: true)), isDark, isPrimary: true, icon: Icons.auto_graph_rounded), 
+                const SizedBox(height: 16), 
+                _menuBtn(context, 'global_mode_manual'.tr(), () => context.read<MultiNBackBloc>().add(const ShowPreTraining(adaptive: false)), isDark, icon: Icons.tune_rounded), 
+                const SizedBox(height: 32), 
+                _menuBtn(context, 'global_analytics'.tr(), () => context.read<MultiNBackBloc>().add(ShowHistory()), isDark, icon: Icons.insights_rounded, isSecondary: true), 
+                const SizedBox(height: 16), 
+                _menuBtn(context, 'global_settings'.tr(), () => context.read<MultiNBackBloc>().add(ShowSettings()), isDark, icon: Icons.settings_rounded, isSecondary: true), 
+                const SizedBox(height: 32), 
+                _menuBtn(context, 'global_exit_module'.tr(), () => Navigator.pop(context), isDark, icon: Icons.power_settings_new_rounded, isDanger: true), 
+                const SizedBox(height: 20)
+              ]
             ),
-            
-            _menuBtn(context, 'global_mode_adaptive'.tr(), () => context.read<MultiNBackBloc>().add(const ShowPreTraining(adaptive: true)), isDark, isPrimary: true, icon: Icons.auto_graph_rounded), 
-            const SizedBox(height: 16), 
-            _menuBtn(context, 'global_mode_manual'.tr(), () => context.read<MultiNBackBloc>().add(const ShowPreTraining(adaptive: false)), isDark, icon: Icons.tune_rounded), 
-            const SizedBox(height: 32), 
-            _menuBtn(context, 'global_analytics'.tr(), () => context.read<MultiNBackBloc>().add(ShowHistory()), isDark, icon: Icons.insights_rounded, isSecondary: true), 
-            const SizedBox(height: 16), 
-            _menuBtn(context, 'global_settings'.tr(), () => context.read<MultiNBackBloc>().add(ShowSettings()), isDark, icon: Icons.settings_rounded, isSecondary: true), 
-            const SizedBox(height: 32), 
-            _menuBtn(context, 'global_exit_module'.tr(), () => Navigator.pop(context), isDark, icon: Icons.power_settings_new_rounded, isDanger: true), 
-            const SizedBox(height: 20)
-          ]
+          ),
         )
-      )
+      ]
     ); 
   }
 
@@ -519,246 +547,255 @@ class MultiNBackScreen extends StatelessWidget {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
     final Color textColor = isDark ? Colors.white : const Color(0xFF1E293B);
 
-    return SingleChildScrollView(
+    return CustomScrollView(
       physics: const BouncingScrollPhysics(),
-      child: Column(
-        children: [
-          const SizedBox(height: 20),
-          
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 24), padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(color: isDark ? const Color(0xFF1A1A2E).withAlpha(150) : Colors.white.withAlpha(150), borderRadius: BorderRadius.circular(32), border: Border.all(color: isDark ? Colors.white12 : accent.withAlpha(20), width: 1.5)),
+      slivers: [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 40.0),
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text('dnb_daily_goal'.tr().toUpperCase(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2), textAlign: TextAlign.center), const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Slider(
-                        value: state.dailyGoal.toDouble(), min: 5, max: 30, divisions: 20, 
-                        activeColor: accent, inactiveColor: isDark ? Colors.white12 : Colors.black12, 
-                        onChanged: (val) => context.read<MultiNBackBloc>().add(UpdateDailyGoalEvent(val.toInt()))
-                      )
-                    ), 
-                    Text("${state.dailyGoal}", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor))
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // MODALITY SELECTOR
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 24), padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(color: isDark ? const Color(0xFF1A1A2E).withAlpha(150) : Colors.white.withAlpha(150), borderRadius: BorderRadius.circular(32), border: Border.all(color: isDark ? Colors.white12 : accent.withAlpha(20), width: 1.5)),
-            child: Column(
-              children: [
-                Text('dnb_settings_modalities'.tr().toUpperCase(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2), textAlign: TextAlign.center), 
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    _buildModalityBtn(context, 2, 'DUAL', 'dnb_modality_standard'.tr(), state.activeModalities, isDark, accent),
-                    _buildModalityBtn(context, 3, 'TRIPLE', 'dnb_modality_advanced'.tr(), state.activeModalities, isDark, accent),
-                    _buildModalityBtn(context, 4, 'QUAD', 'dnb_modality_expert'.tr(), state.activeModalities, isDark, accent),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // ADAPTACE
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 24), padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(color: isDark ? const Color(0xFF1A1A2E).withAlpha(150) : Colors.white.withAlpha(150), borderRadius: BorderRadius.circular(32), border: Border.all(color: isDark ? Colors.white12 : accent.withAlpha(20), width: 1.5)),
-            child: Column(
-              children: [
-                Text('dnb_settings_adaptive_title'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2), textAlign: TextAlign.center), const SizedBox(height: 24),
-                Text('dnb_settings_adaptation_speed'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)), const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween, 
-                  children: [
-                    _buildAdaptBtn(context, 1, 'dnb_settings_adapt_1'.tr(), state.adaptationSpeed, isDark, accent, false), 
-                    _buildAdaptBtn(context, 3, 'dnb_settings_adapt_3'.tr(), state.adaptationSpeed, isDark, accent, false), 
-                    _buildAdaptBtn(context, 7, 'dnb_settings_adapt_7'.tr(), state.adaptationSpeed, isDark, accent, false)
-                  ]
-                ),
-                const Divider(color: Colors.white12, height: 30),
-                
-                // Nejnižší časování
-                Text('dnb_settings_adaptive_min'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Slider(
-                        value: state.adaptiveSpeedMinMs / 1000, 
-                        min: 1.0, 
-                        max: 3.0, 
-                        divisions: 20, 
-                        activeColor: accent, 
-                        inactiveColor: isDark ? Colors.white12 : Colors.black12, 
-                        onChanged: (val) => context.read<MultiNBackBloc>().add(UpdateSettings(adaptiveSpeedMinMs: (val * 1000).round()))
-                      )
-                    ), 
-                    Text("${(state.adaptiveSpeedMinMs / 1000).toStringAsFixed(1)}s", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor))
-                  ]
-                ),
-                const SizedBox(height: 16),
-
-                // Zrychlení po úspěchu
-                Text('dnb_settings_adaptive_step'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Slider(
-                        value: state.adaptiveSpeedStepMs / 1000, 
-                        min: 0.2, max: 0.5, divisions: 3, 
-                        activeColor: accent, inactiveColor: isDark ? Colors.white12 : Colors.black12, 
-                        onChanged: (val) => context.read<MultiNBackBloc>().add(UpdateSettings(adaptiveSpeedStepMs: (val * 1000).round()))
-                      )
-                    ), 
-                    Text("${(state.adaptiveSpeedStepMs / 1000).toStringAsFixed(1)}s", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor))
-                  ]
-                ),
-                const SizedBox(height: 16),
-
-                // Počet adaptací před zvýšením N
-                Text('dnb_settings_adaptive_count'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Slider(
-                        value: state.adaptiveStepCount.toDouble(), 
-                        min: 1, max: 4, divisions: 3, 
-                        activeColor: accent, inactiveColor: isDark ? Colors.white12 : Colors.black12, 
-                        onChanged: (val) => context.read<MultiNBackBloc>().add(UpdateSettings(adaptiveStepCount: val.round()))
-                      )
-                    ), 
-                    Text("${state.adaptiveStepCount}", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor))
-                  ]
-                ),
-                const SizedBox(height: 16),
-
-                // Tlačítko pro aktivaci Variabilního časování (VAR)
-                GestureDetector(
-                  onTap: () => context.read<MultiNBackBloc>().add(UpdateSettings(adaptiveUseVar: !state.adaptiveUseVar)),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: state.adaptiveUseVar ? accent.withAlpha(20) : (isDark ? Colors.white.withAlpha(5) : Colors.black.withAlpha(5)),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: state.adaptiveUseVar ? accent : (isDark ? Colors.white12 : Colors.black12))
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(state.adaptiveUseVar ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded, color: state.adaptiveUseVar ? accent : (isDark ? Colors.white54 : Colors.black54), size: 20),
-                        const SizedBox(width: 12),
-                        Flexible(child: FittedBox(fit: BoxFit.scaleDown, child: Text('dnb_settings_adaptive_var'.tr().toUpperCase(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: state.adaptiveUseVar ? accent : (isDark ? Colors.white54 : Colors.black54))))),
-                      ]
-                    )
-                  )
-                ),
-                const SizedBox(height: 32),
-
-                // Dynamická vizualizace aktuální sekvence časů
-                Builder(
-                  builder: (context) {
-                    List<String> speedSequence = [];
-                    for (int i = 0; i < state.adaptiveStepCount; i++) {
-                      if (state.adaptiveUseVar && i == state.adaptiveStepCount - 1) {
-                        speedSequence.add("VAR");
-                      } else {
-                        int spd = state.adaptiveSpeedMinMs + ((state.adaptiveStepCount - 1) - i) * state.adaptiveSpeedStepMs;
-                        speedSequence.add("${(spd / 1000).toStringAsFixed(1)}s");
-                      }
-                    }
-
-                    return Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(color: accent.withAlpha(15), borderRadius: BorderRadius.circular(16), border: Border.all(color: accent.withAlpha(30))),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 24), padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(color: isDark ? const Color(0xFF1A1A2E).withAlpha(150) : Colors.white.withAlpha(150), borderRadius: BorderRadius.circular(32), border: Border.all(color: isDark ? Colors.white12 : accent.withAlpha(20), width: 1.5)),
+                  child: Column(
+                    children: [
+                      Text('dnb_daily_goal'.tr().toUpperCase(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2), textAlign: TextAlign.center), const SizedBox(height: 16),
+                      Row(
                         children: [
-                          Text("dnb_settings_sequence_title".tr().toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: accent, letterSpacing: 1.5), textAlign: TextAlign.center),
-                          const SizedBox(height: 16),
-                          Wrap(
-                            alignment: WrapAlignment.center,
-                            spacing: 8, runSpacing: 10,
-                            children: speedSequence.asMap().entries.map((entry) {
-                              bool isLast = entry.key == speedSequence.length - 1;
-                              String step = entry.value;
-                              return Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: step == "VAR" ? Colors.orangeAccent.withAlpha(40) : accent.withAlpha(40),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: step == "VAR" ? Colors.orangeAccent.withAlpha(50) : accent.withAlpha(50))
-                                    ),
-                                    child: Text(step, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isDark ? Colors.white : Colors.black87)),
-                                  ),
-                                  if (!isLast) ...[
-                                    const SizedBox(width: 8),
-                                    Icon(Icons.arrow_forward_ios_rounded, size: 10, color: accent.withAlpha(150)),
-                                  ]
-                                ],
-                              );
-                            }).toList(),
-                          ),
+                          Expanded(
+                            child: Slider(
+                              value: state.dailyGoal.toDouble(), min: 5, max: 30, divisions: 20, 
+                              activeColor: accent, inactiveColor: isDark ? Colors.white12 : Colors.black12, 
+                              onChanged: (val) => context.read<MultiNBackBloc>().add(UpdateDailyGoalEvent(val.toInt()))
+                            )
+                          ), 
+                          Text("${state.dailyGoal}", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor))
                         ],
                       ),
-                    );
-                  }
+                    ],
+                  ),
                 ),
+                const SizedBox(height: 24),
+
+                // MODALITY SELECTOR
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 24), padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(color: isDark ? const Color(0xFF1A1A2E).withAlpha(150) : Colors.white.withAlpha(150), borderRadius: BorderRadius.circular(32), border: Border.all(color: isDark ? Colors.white12 : accent.withAlpha(20), width: 1.5)),
+                  child: Column(
+                    children: [
+                      Text('dnb_settings_modalities'.tr().toUpperCase(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2), textAlign: TextAlign.center), 
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _buildModalityBtn(context, 2, 'DUAL', 'dnb_modality_standard'.tr(), state.activeModalities, isDark, accent),
+                          _buildModalityBtn(context, 3, 'TRIPLE', 'dnb_modality_advanced'.tr(), state.activeModalities, isDark, accent),
+                          _buildModalityBtn(context, 4, 'QUAD', 'dnb_modality_expert'.tr(), state.activeModalities, isDark, accent),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // ADAPTACE
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 24), padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(color: isDark ? const Color(0xFF1A1A2E).withAlpha(150) : Colors.white.withAlpha(150), borderRadius: BorderRadius.circular(32), border: Border.all(color: isDark ? Colors.white12 : accent.withAlpha(20), width: 1.5)),
+                  child: Column(
+                    children: [
+                      Text('dnb_settings_adaptive_title'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2), textAlign: TextAlign.center), const SizedBox(height: 24),
+                      Text('dnb_settings_adaptation_speed'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)), const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween, 
+                        children: [
+                          _buildAdaptBtn(context, 1, 'dnb_settings_adapt_1'.tr(), state.adaptationSpeed, isDark, accent, false), 
+                          _buildAdaptBtn(context, 3, 'dnb_settings_adapt_3'.tr(), state.adaptationSpeed, isDark, accent, false), 
+                          _buildAdaptBtn(context, 7, 'dnb_settings_adapt_7'.tr(), state.adaptationSpeed, isDark, accent, false)
+                        ]
+                      ),
+                      const Divider(color: Colors.white12, height: 30),
+                      
+                      // Nejnižší časování
+                      Text('dnb_settings_adaptive_min'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Slider(
+                              value: state.adaptiveSpeedMinMs / 1000, 
+                              min: 1.0, 
+                              max: 3.0, 
+                              divisions: 20, 
+                              activeColor: accent, 
+                              inactiveColor: isDark ? Colors.white12 : Colors.black12, 
+                              onChanged: (val) => context.read<MultiNBackBloc>().add(UpdateSettings(adaptiveSpeedMinMs: (val * 1000).round()))
+                            )
+                          ), 
+                          Text("${(state.adaptiveSpeedMinMs / 1000).toStringAsFixed(1)}s", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor))
+                        ]
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Zrychlení po úspěchu
+                      Text('dnb_settings_adaptive_step'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Slider(
+                              value: state.adaptiveSpeedStepMs / 1000, 
+                              min: 0.2, max: 0.5, divisions: 3, 
+                              activeColor: accent, inactiveColor: isDark ? Colors.white12 : Colors.black12, 
+                              onChanged: (val) => context.read<MultiNBackBloc>().add(UpdateSettings(adaptiveSpeedStepMs: (val * 1000).round()))
+                            )
+                          ), 
+                          Text("${(state.adaptiveSpeedStepMs / 1000).toStringAsFixed(1)}s", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor))
+                        ]
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Počet adaptací před zvýšením N
+                      Text('dnb_settings_adaptive_count'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Slider(
+                              value: state.adaptiveStepCount.toDouble(), 
+                              min: 1, max: 4, divisions: 3, 
+                              activeColor: accent, inactiveColor: isDark ? Colors.white12 : Colors.black12, 
+                              onChanged: (val) => context.read<MultiNBackBloc>().add(UpdateSettings(adaptiveStepCount: val.round()))
+                            )
+                          ), 
+                          Text("${state.adaptiveStepCount}", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor))
+                        ]
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Tlačítko pro aktivaci Variabilního časování (VAR)
+                      GestureDetector(
+                        onTap: () => context.read<MultiNBackBloc>().add(UpdateSettings(adaptiveUseVar: !state.adaptiveUseVar)),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: state.adaptiveUseVar ? accent.withAlpha(20) : (isDark ? Colors.white.withAlpha(5) : Colors.black.withAlpha(5)),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: state.adaptiveUseVar ? accent : (isDark ? Colors.white12 : Colors.black12))
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(state.adaptiveUseVar ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded, color: state.adaptiveUseVar ? accent : (isDark ? Colors.white54 : Colors.black54), size: 20),
+                              const SizedBox(width: 12),
+                              Flexible(child: FittedBox(fit: BoxFit.scaleDown, child: Text('dnb_settings_adaptive_var'.tr().toUpperCase(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: state.adaptiveUseVar ? accent : (isDark ? Colors.white54 : Colors.black54))))),
+                            ]
+                          )
+                        )
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Dynamická vizualizace aktuální sekvence časů
+                      Builder(
+                        builder: (context) {
+                          List<String> speedSequence = [];
+                          for (int i = 0; i < state.adaptiveStepCount; i++) {
+                            if (state.adaptiveUseVar && i == state.adaptiveStepCount - 1) {
+                              speedSequence.add("VAR");
+                            } else {
+                              int spd = state.adaptiveSpeedMinMs + ((state.adaptiveStepCount - 1) - i) * state.adaptiveSpeedStepMs;
+                              speedSequence.add("${(spd / 1000).toStringAsFixed(1)}s");
+                            }
+                          }
+
+                          return Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(color: accent.withAlpha(15), borderRadius: BorderRadius.circular(16), border: Border.all(color: accent.withAlpha(30))),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text("dnb_settings_sequence_title".tr().toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: accent, letterSpacing: 1.5), textAlign: TextAlign.center),
+                                const SizedBox(height: 16),
+                                Wrap(
+                                  alignment: WrapAlignment.center,
+                                  spacing: 8, runSpacing: 10,
+                                  children: speedSequence.asMap().entries.map((entry) {
+                                    bool isLast = entry.key == speedSequence.length - 1;
+                                    String step = entry.value;
+                                    return Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: step == "VAR" ? Colors.orangeAccent.withAlpha(40) : accent.withAlpha(40),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: step == "VAR" ? Colors.orangeAccent.withAlpha(50) : accent.withAlpha(50))
+                                          ),
+                                          child: Text(step, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isDark ? Colors.white : Colors.black87)),
+                                        ),
+                                        if (!isLast) ...[
+                                          const SizedBox(width: 8),
+                                          Icon(Icons.arrow_forward_ios_rounded, size: 10, color: accent.withAlpha(150)),
+                                        ]
+                                      ],
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // MANUAL
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 24), padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(color: isDark ? const Color(0xFF1A1A2E).withAlpha(150) : Colors.white.withAlpha(150), borderRadius: BorderRadius.circular(32), border: Border.all(color: isDark ? Colors.white12 : accent.withAlpha(20), width: 1.5)),
+                  child: Column(
+                    children: [
+                      Text('dnb_settings_title'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2), textAlign: TextAlign.center), const SizedBox(height: 24),
+                      Text('dnb_settings_level'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)),
+                      Row(children: [Expanded(child: Slider(value: state.manualN.toDouble(), min: 1, max: 9, divisions: 8, activeColor: accent, inactiveColor: isDark ? Colors.white12 : Colors.black12, onChanged: (val) => context.read<MultiNBackBloc>().add(UpdateSettings(manualN: val.round())))), Text("${state.manualN}", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor))]),
+                      const Divider(color: Colors.white12, height: 30),
+                      Text('dnb_settings_speed'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Slider(
+                              value: state.manualSpeedMs / 1000, 
+                              min: 1.3, 
+                              max: 3.5, 
+                              divisions: 22,  
+                              activeColor: accent, 
+                              inactiveColor: isDark ? Colors.white12 : Colors.black12, 
+                              onChanged: (val) => context.read<MultiNBackBloc>().add(UpdateSettings(manualSpeedMs: (val * 1000).round()))
+                            )
+                          ), 
+                          Text(
+                            "${(state.manualSpeedMs / 1000).toStringAsFixed(1)}s", 
+                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor)
+                          )
+                        ]
+                      ),
+                    ] 
+                  ),
+                ),
+                const SizedBox(height: 40),
+                _menuBtn(context, 'global_btn_save_back'.tr(), () => context.read<MultiNBackBloc>().add(ResetMultiNBack()), isDark, isPrimary: true), 
+                const SizedBox(height: 40),
               ],
             ),
           ),
-          const SizedBox(height: 24),
-
-          // MANUAL
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 24), padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(color: isDark ? const Color(0xFF1A1A2E).withAlpha(150) : Colors.white.withAlpha(150), borderRadius: BorderRadius.circular(32), border: Border.all(color: isDark ? Colors.white12 : accent.withAlpha(20), width: 1.5)),
-            child: Column(
-              children: [
-                Text('dnb_settings_title'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2), textAlign: TextAlign.center), const SizedBox(height: 24),
-                Text('dnb_settings_level'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)),
-                Row(children: [Expanded(child: Slider(value: state.manualN.toDouble(), min: 1, max: 9, divisions: 8, activeColor: accent, inactiveColor: isDark ? Colors.white12 : Colors.black12, onChanged: (val) => context.read<MultiNBackBloc>().add(UpdateSettings(manualN: val.round())))), Text("${state.manualN}", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor))]),
-                const Divider(color: Colors.white12, height: 30),
-                Text('dnb_settings_speed'.tr(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: isDark ? Colors.white54 : Colors.black54)),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Slider(
-                        value: state.manualSpeedMs / 1000, 
-                        min: 1.3, 
-                        max: 3.5, 
-                        divisions: 22,  
-                        activeColor: accent, 
-                        inactiveColor: isDark ? Colors.white12 : Colors.black12, 
-                        onChanged: (val) => context.read<MultiNBackBloc>().add(UpdateSettings(manualSpeedMs: (val * 1000).round()))
-                      )
-                    ), 
-                    Text(
-                      "${(state.manualSpeedMs / 1000).toStringAsFixed(1)}s", 
-                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: textColor)
-                    )
-                  ]
-                ),
-              ] 
-            ),
-          ),
-          const SizedBox(height: 40),
-          _menuBtn(context, 'global_btn_save_back'.tr(), () => context.read<MultiNBackBloc>().add(ResetMultiNBack()), isDark, isPrimary: true), const SizedBox(height: 40),
-        ],
-      ),
+        )
+      ]
     );
   }
 
@@ -811,20 +848,29 @@ class MultiNBackScreen extends StatelessWidget {
   }
 
   Widget _buildResult(BuildContext context, MultiNBackState state, bool isDark) { 
-    double percent = state.totalRounds > 0 ? (state.score / (state.totalRounds * state.currentModalities)) * 100 : 0; 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center, 
-        children: [
-          Icon(Icons.hub_rounded, size: 80, color: isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF)), 
-          const SizedBox(height: 30), 
-          Text('${percent.toStringAsFixed(1)}%', style: TextStyle(fontSize: 60, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B))), 
-          const SizedBox(height: 50), 
-          _menuBtn(context, 'global_btn_continue'.tr(), () => context.read<MultiNBackBloc>().add(StartGame(adaptive: state.isAdaptive)), isDark, isPrimary: true), 
-          const SizedBox(height: 16), 
-          _menuBtn(context, 'global_btn_to_menu'.tr(), () => context.read<MultiNBackBloc>().add(ResetMultiNBack()), isDark, isSecondary: true)
-        ]
-      )
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 40.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center, 
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(Icons.hub_rounded, size: 80, color: isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF)), 
+                const SizedBox(height: 30), 
+                Text('${state.score} %', style: TextStyle(fontSize: 60, fontWeight: FontWeight.w900, color: isDark ? Colors.white : const Color(0xFF1E293B))), 
+                const SizedBox(height: 50), 
+                _menuBtn(context, 'global_btn_continue'.tr(), () => context.read<MultiNBackBloc>().add(StartGame(adaptive: state.isAdaptive)), isDark, isPrimary: true), 
+                const SizedBox(height: 16), 
+                _menuBtn(context, 'global_btn_to_menu'.tr(), () => context.read<MultiNBackBloc>().add(ResetMultiNBack()), isDark, isSecondary: true)
+              ]
+            ),
+          ),
+        )
+      ]
     ); 
   }
 
@@ -854,7 +900,7 @@ class MultiNBackScreen extends StatelessWidget {
     );
   }
 
-    Widget _buildGraph(BuildContext context, MultiNBackState state, bool adaptive, String title, bool isDark, bool is24h) {
+  Widget _buildGraph(BuildContext context, MultiNBackState state, bool adaptive, String title, bool isDark, bool is24h) {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
     final history = state.history.where((e) => e.isAdaptive == adaptive).toList();
     
@@ -889,7 +935,7 @@ class MultiNBackScreen extends StatelessWidget {
     double maxPoints = 1.0;
     if (showGamified) {
       for (var item in history) {
-        double successRate = item.date.isBefore(DateTime(2026, 7, 7)) 
+        double successRate = item.date.isBefore(DateTime(2026, 7, 16)) 
             ? (item.score / (state.totalRounds * item.modalities)).clamp(0.0, 1.0)
             : (item.score / 100.0).clamp(0.0, 1.0);
         
@@ -926,8 +972,7 @@ class MultiNBackScreen extends StatelessWidget {
       );
 
       for (var item in dayItems) {
-        // Správný výpočet procent podle stáří záznamu
-        double successRate = item.date.isBefore(DateTime(2026, 7, 7)) 
+        double successRate = item.date.isBefore(DateTime(2026, 7, 16)) 
             ? (item.score / (state.totalRounds * item.modalities)).clamp(0.0, 1.0)
             : (item.score / 100.0).clamp(0.0, 1.0);
             
@@ -936,11 +981,11 @@ class MultiNBackScreen extends StatelessWidget {
 
         if (showGamified) {
           double pts = calculatePoints(item, successRate);
-          heightFactor = maxPoints > 0 ? (pts / maxPoints) : 0.0;
-          if (heightFactor.isNaN || heightFactor.isInfinite) heightFactor = 0.0;
+          heightFactor = maxPoints > 75 ? ((pts - 75) / (maxPoints - 75)).clamp(0.05, 1.0) : 0.05;
+          if (heightFactor.isNaN || heightFactor.isInfinite) heightFactor = 0.05;
           topLabel = '${pts.round()} ${'global_pts'.tr()}';
         } else {
-          heightFactor = successRate; // Osa je rovnou 0-100%
+          heightFactor = successRate; 
           topLabel = '${(successRate * 100).round()} %';
         }
 
@@ -1021,7 +1066,6 @@ class MultiNBackScreen extends StatelessWidget {
       ),
     );
   }
-
 
   Widget _menuBtn(BuildContext context, String label, VoidCallback onTap, bool isDark, {double width = 320, bool isPrimary = false, bool isSecondary = false, bool isDanger = false, IconData? icon}) {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);

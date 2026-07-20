@@ -163,7 +163,7 @@ class ECorsiScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBody(BuildContext context, ECorsiState state, bool isDark) {
+    Widget _buildBody(BuildContext context, ECorsiState state, bool isDark) {
     if (state.phase == ECorsiPhase.menu) return _buildMenu(context, isDark);
     if (state.phase == ECorsiPhase.result) return _buildResult(context, state, isDark);
     if (state.phase == ECorsiPhase.history) return _buildHistory(context, state, isDark);
@@ -197,53 +197,59 @@ class ECorsiScreen extends StatelessWidget {
         Text(instruction, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black54, letterSpacing: 1.5)),
         const Spacer(),
         
-        AspectRatio(
-          aspectRatio: 1.0,
-          child: Container(
-            margin: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1A1A2E).withAlpha(150) : Colors.white.withAlpha(150),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: isDark ? Colors.white12 : accentColor.withAlpha(20), width: 1.5),
-              boxShadow: isDark ? [] : [BoxShadow(color: accentColor.withAlpha(15), blurRadius: 20, offset: const Offset(0, 10))],
-            ),
-            child: Stack(
-                            children: List.generate(9, (index) {
-                bool isActive = state.activeBlockIndex == index;
-                bool isTapped = state.userInputs.contains(index) && state.phase == ECorsiPhase.input;
-                
-                Color blockColor = isDark ? Colors.white.withAlpha(10) : accentColor.withAlpha(10);
-                Color glowColor = Colors.transparent;
-                
-                // ZMĚNA: Pokud je aktivní blok v režimu zadávání (input), vybarvíme ho červeně jako chybu
-                if (isActive) { 
-                  if (state.phase == ECorsiPhase.input) {
-                    blockColor = Colors.redAccent; 
-                    glowColor = Colors.redAccent;
-                  } else {
-                    blockColor = accentColor; 
-                    glowColor = accentColor;
-                  }
-                }
-                if (isTapped) { blockColor = const Color(0xFF00E676); glowColor = const Color(0xFF00E676); }
-
-                return Align(
-                  alignment: _blockPositions[index],
-                    child: GestureDetector(
-                    onTap: () => context.read<ECorsiBloc>().add(BlockTapped(index)),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: isActive || isTapped ? 68 : 60, height: isActive || isTapped ? 68 : 60,
-                      decoration: BoxDecoration(
-                        color: blockColor,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: isActive || isTapped ? Colors.white : (isDark ? Colors.white24 : accentColor.withAlpha(30)), width: 2),
-                        boxShadow: isActive || isTapped ? [BoxShadow(color: glowColor.withAlpha(150), blurRadius: 20, spreadRadius: 2)] : [],
+        // --- OPRAVA: Uzamčení velikosti hrací plochy pro Windows ---
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500, maxHeight: 500),
+            child: AspectRatio(
+              aspectRatio: 1.0,
+              child: Container(
+                margin: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1A1A2E).withAlpha(150) : Colors.white.withAlpha(150),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: isDark ? Colors.white12 : accentColor.withAlpha(20), width: 1.5),
+                  boxShadow: isDark ? [] : [BoxShadow(color: accentColor.withAlpha(15), blurRadius: 20, offset: const Offset(0, 10))],
+                ),
+                child: Stack(
+                  children: List.generate(9, (index) {
+                    bool isActive = state.activeBlockIndex == index;
+                    bool isTapped = state.userInputs.contains(index) && state.phase == ECorsiPhase.input;
+                    
+                    Color blockColor = isDark ? Colors.white.withAlpha(10) : accentColor.withAlpha(10);
+                    Color glowColor = Colors.transparent;
+                    
+                    // ZMĚNA: Pokud je aktivní blok v režimu zadávání (input), vybarvíme ho červeně jako chybu
+                    if (isActive) { 
+                      if (state.phase == ECorsiPhase.input) {
+                        blockColor = Colors.redAccent; 
+                        glowColor = Colors.redAccent;
+                      } else {
+                        blockColor = accentColor; 
+                        glowColor = accentColor;
+                      }
+                    }
+                    if (isTapped) { blockColor = const Color(0xFF00E676); glowColor = const Color(0xFF00E676); }
+          
+                    return Align(
+                      alignment: _blockPositions[index],
+                      child: GestureDetector(
+                        onTap: () => context.read<ECorsiBloc>().add(BlockTapped(index)),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: isActive || isTapped ? 68 : 60, height: isActive || isTapped ? 68 : 60,
+                          decoration: BoxDecoration(
+                            color: blockColor,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: isActive || isTapped ? Colors.white : (isDark ? Colors.white24 : accentColor.withAlpha(30)), width: 2),
+                            boxShadow: isActive || isTapped ? [BoxShadow(color: glowColor.withAlpha(150), blurRadius: 20, spreadRadius: 2)] : [],
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                );
-              }),
+                    );
+                  }),
+                ),
+              ),
             ),
           ),
         ),
@@ -251,6 +257,7 @@ class ECorsiScreen extends StatelessWidget {
       ],
     );
   }
+
 
   Widget _buildMessage(BuildContext context, String text, IconData icon, Color color, bool isDark, bool isSuccess) {
     return Center(

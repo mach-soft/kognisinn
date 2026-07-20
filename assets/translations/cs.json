@@ -345,7 +345,14 @@
   "onboarding_gamification_desc": "Ačkoliv samotné tréninkové moduly odpovídají vědecké metodice, pro lepší představu o vašem pokroku nabízíme gamifikovaný systém hodnocení. Průměrný začátečník v něm dosahuje skóre 100, teoretické lidské maximum je kolem 200. Toto skóre není vypočítáno žádnou standardizovanou vědeckou metodou, jde pouze o náš hrubý odhad k udržení motivace. Chcete zobrazovat tyto gamifikované hodnoty?",
   "onboard_btn_finish": "DOKONČIT",
   "global_progress": "Celkový pokrok",
-  "global_score_kci": "Skóre: {} KCI"
+  "global_score_kci": "Skóre: {} KCI",
+  "palace_settings_items_per_loc": "Předmětů na lokaci",
+  "palace_settings_rand_locs": "Náhodné pořadí lokací při testu",
+  "palace_settings_rand_items": "Náhodné pořadí předmětů",
+  "palace_diff_standard": "STANDARD",
+  "palace_diff_expert": "EXPERT",
+  "palace_diff_expert_plus": "EXPERT+"
+
 
 
 

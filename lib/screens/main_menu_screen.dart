@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_bloc/flutter_bloc.dart'; // PŘIDÁNO: Nutné pro čtení ze SettingsBloc
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'calibration/calibration_screen.dart';
 import 'cognitive_profile_screen.dart';
@@ -15,12 +15,10 @@ import 'global_settings_screen.dart';
 import '../bloc/settings/settings_bloc.dart';
 
 class MainMenuScreen extends StatelessWidget {
-  // Tento parametr tu zůstane pro první spuštění z main.dart
   final bool isCalibrated;
   
   const MainMenuScreen({super.key, this.isCalibrated = false});
 
-  // --- Funkce, která vždy bezpečně ověří skutečný stav v paměti ---
   Future<bool> _checkCalibrationStatus() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('global_is_calibrated') ?? false;
@@ -61,7 +59,6 @@ class MainMenuScreen extends StatelessWidget {
     }
   }
 
-  // --- Design kalibrační karty ---
   Widget _buildCalibrationCard(BuildContext context, bool isDark) {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
     
@@ -83,7 +80,6 @@ class MainMenuScreen extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(24),
           onTap: () {
-            // Spuštění naší nové kalibrační obrazovky
             Navigator.push(context, MaterialPageRoute(builder: (_) => const CalibrationScreen()));
           },
           child: Padding(
@@ -142,19 +138,15 @@ class MainMenuScreen extends StatelessWidget {
     );
   }
 
-  // --- Kognitivní profil s kontrolou gamifikace ---
   Widget _buildRadarChartPlaceholder(BuildContext context, bool isDark) {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
     
-    // Zde obalíme kartu BlocBuilderem, aby reagovala na změnu v SettingsBlocu
     return BlocBuilder<SettingsBloc, SettingsState>(
       builder: (context, state) {
-        // Pokud je gamifikace VYPNUTÁ, skryj kartu profilu
         if (!state.showGamifiedValues) {
           return const SizedBox.shrink();
         }
 
-        // Jinak ji normálně vykresli
         return Container(
           width: 320,
           height: 220,
@@ -198,6 +190,10 @@ class MainMenuScreen extends StatelessWidget {
   }
 
   @override
+    @override
+    @override
+    @override
+    @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
     final Color bgTop = isDark ? const Color(0xFF0B0F19) : const Color(0xFFF8FAFC);
@@ -227,73 +223,75 @@ class MainMenuScreen extends StatelessWidget {
                 )
               ),
               child: SafeArea(
-                child: Center(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 20),
-                        ShaderMask(
-                          shaderCallback: (bounds) => const LinearGradient(
-                            colors: [Color(0xFF00E5FF), Color(0xFF7000FF)]
-                          ).createShader(bounds),
-                          child: Text(
-                            'menu_title'.tr(),
-                            style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 6)
+                // Nahrazeno spolehlivým SingleChildScrollView s ukotvením posuvníku
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Padding(
+                      // Přidán ochranný spodní buffer 80.0
+                      padding: const EdgeInsets.only(top: 40.0, bottom: 80.0, left: 20.0, right: 20.0), 
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center, 
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          ShaderMask(
+                            shaderCallback: (bounds) => const LinearGradient(
+                              colors: [Color(0xFF00E5FF), Color(0xFF7000FF)]
+                            ).createShader(bounds),
+                            child: Text(
+                              'menu_title'.tr(),
+                              style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 6)
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                          margin: const EdgeInsets.only(bottom: 40),
-                          decoration: BoxDecoration(
-                            color: isDark ? Colors.white.withAlpha(15) : const Color(0xFF7000FF).withAlpha(15),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: isDark ? Colors.white12 : const Color(0xFF7000FF).withAlpha(30)),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                            margin: const EdgeInsets.only(bottom: 40),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.white.withAlpha(15) : const Color(0xFF7000FF).withAlpha(15),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: isDark ? Colors.white12 : const Color(0xFF7000FF).withAlpha(30)),
+                            ),
+                            child: Text(
+                              'menu_subtitle'.tr(),
+                              style: TextStyle(
+                                fontSize: 12, 
+                                fontWeight: FontWeight.w800, 
+                                color: isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF), 
+                                letterSpacing: 3
+                              )
+                            ),
                           ),
-                          child: Text(
-                            'menu_subtitle'.tr(),
-                            style: TextStyle(
-                              fontSize: 12, 
-                              fontWeight: FontWeight.w800, 
-                              color: isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF), 
-                              letterSpacing: 3
-                            )
+                          
+                          BlocBuilder<SettingsBloc, SettingsState>(
+                            builder: (context, state) {
+                              if (!state.showGamifiedValues) {
+                                return const SizedBox.shrink(); 
+                              }
+                              
+                              if (!currentIsCalibrated) {
+                                return _buildCalibrationCard(context, isDark);
+                              } else {
+                                return _buildRadarChartPlaceholder(context, isDark);
+                              }
+                            },
                           ),
-                        ),
-                        
-                                                // --- OPRAVA: KONTROLA GAMIFIKACE PRO KALIBRACI I PROFIL ---
-                        BlocBuilder<SettingsBloc, SettingsState>(
-                          builder: (context, state) {
-                            // Pokud je gamifikace VYPNUTÁ, skryj úplně všechno (kalibraci i profil)
-                            if (!state.showGamifiedValues) {
-                              return const SizedBox.shrink(); 
-                            }
-                            
-                            // Pokud je ZAPNUTÁ, rozhodni se podle toho, zda už proběhla kalibrace
-                            if (!currentIsCalibrated) {
-                              return _buildCalibrationCard(context, isDark);
-                            } else {
-                              return _buildRadarChartPlaceholder(context, isDark);
-                            }
-                          },
-                        ),
 
-
-                        _menuBtn(context, 'Multi N-Back', Icons.memory_rounded, isDark, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MultiNBackScreen()))),
-                        const SizedBox(height: 18),
-                        _menuBtn(context, 'menu_btn_digit_span'.tr(), Icons.onetwothree_rounded, isDark, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DigitSpanScreen()))),
-                        const SizedBox(height: 18),
-                        _menuBtn(context, 'menu_btn_stroop'.tr(), Icons.palette_rounded, isDark, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StroopScreen()))),
-                        const SizedBox(height: 18),
-                        _menuBtn(context, 'menu_btn_ecorsi'.tr(), Icons.apps_rounded, isDark, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ECorsiScreen()))),
-                        const SizedBox(height: 18),
-                        _menuBtn(context, 'menu_btn_palace'.tr(), Icons.account_balance_rounded, isDark, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MemoryPalaceScreen()))),
-                        const SizedBox(height: 50),
-                        
-                        _buildSettingsButton(context, isDark),
-                      ],
+                          _menuBtn(context, 'Multi N-Back', Icons.memory_rounded, isDark, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MultiNBackScreen()))),
+                          const SizedBox(height: 18),
+                          _menuBtn(context, 'menu_btn_digit_span'.tr(), Icons.onetwothree_rounded, isDark, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DigitSpanScreen()))),
+                          const SizedBox(height: 18),
+                          _menuBtn(context, 'menu_btn_stroop'.tr(), Icons.palette_rounded, isDark, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StroopScreen()))),
+                          const SizedBox(height: 18),
+                          _menuBtn(context, 'menu_btn_ecorsi'.tr(), Icons.apps_rounded, isDark, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ECorsiScreen()))),
+                          const SizedBox(height: 18),
+                          _menuBtn(context, 'menu_btn_palace'.tr(), Icons.account_balance_rounded, isDark, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MemoryPalaceScreen()))),
+                          const SizedBox(height: 50),
+                          
+                          _buildSettingsButton(context, isDark),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -304,6 +302,10 @@ class MainMenuScreen extends StatelessWidget {
       ),
     );
   }
+
+
+
+
 
   Widget _menuBtn(BuildContext context, String title, IconData icon, bool isDark, VoidCallback onTap) {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);

@@ -94,7 +94,6 @@ class DigitSpanScreen extends StatelessWidget {
           return previous.phase != GamePhase.gameOver && current.phase == GamePhase.gameOver;
         },
         listener: (context, state) async {
-          // Záměrně prázdné - BLoC se stará o veškeré ukládání sám (Single Source of Truth)
         },
         builder: (context, state) {
           bool showBackgroundEffects = state.isEmphaticMode && state.isGamificationEnabled && state.gameType == GameType.gameMode;
@@ -135,12 +134,8 @@ class DigitSpanScreen extends StatelessWidget {
                           children: [
                             _buildHeader(isDark, state),
                             Expanded(
-                              child: Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                                  child: _buildBody(context, state, isDark),
-                                ),
-                              ),
+                              // Rozhodovací logika: Má to scrollovat, nebo se to má vycentrovat?
+                              child: _buildScrollableOrCenteredContent(context, state, isDark),
                             ),
                           ],
                         ),
@@ -152,6 +147,48 @@ class DigitSpanScreen extends StatelessWidget {
       ),
     );
   }
+
+  // --- NOVÁ LOGIKA PRO OŠETŘENÍ SCROLLOVÁNÍ NA WINDOWS ---
+    // --- NOVÁ LOGIKA PRO OŠETŘENÍ SCROLLOVÁNÍ NA WINDOWS ---
+    // --- NOVÁ LOGIKA PRO OŠETŘENÍ SCROLLOVÁNÍ NA WINDOWS ---
+  Widget _buildScrollableOrCenteredContent(BuildContext context, DigitSpanState state, bool isDark) {
+    // Definice fází, které VŽDY potřebují plný scroll
+    bool needsScroll = [
+      GamePhase.menu, 
+      GamePhase.settings, 
+      GamePhase.choosingLevel, 
+      GamePhase.choosingMode, 
+      GamePhase.showingResults, 
+      GamePhase.gameOver
+    ].contains(state.phase);
+
+    Widget content = _buildBody(context, state, isDark);
+
+    if (needsScroll) {
+      // Zcela odstraněn explicitní Scrollbar, aby nedocházelo k pádům na Windows.
+      // Posuvník zajistí sám systém, double.infinity zaručí jeho umístění vpravo.
+      return SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: SizedBox(
+          width: double.infinity, // KLIČOVÉ: Roztáhne scrollview přes celou obrazovku
+          child: Padding(
+            // Přidáno spodní odsazení 80.0 pro pohodlné vytažení posledního tlačítka nahoru
+            padding: const EdgeInsets.only(top: 20.0, bottom: 80.0, left: 24.0, right: 24.0), 
+            child: content,
+          ),
+        ),
+      );
+    } else {
+      // Běžné zobrazení při hře (číslice a klávesnice se hezky vycentrují)
+      return Container(
+        width: double.infinity,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: content,
+      );
+    }
+  }
+
 
   Widget _buildHeader(bool isDark, DigitSpanState state) {
     if (state.phase == GamePhase.showingSequence || state.phase == GamePhase.waitingForInput || state.phase == GamePhase.showingSuccess || state.phase == GamePhase.showingFailure) {
@@ -175,6 +212,45 @@ class DigitSpanScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildGameTopBar(DigitSpanState state, bool isDark, Color accent) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 30),
+      child: Row(
+        mainAxisAlignment: state.gameType == GameType.fastTest 
+            ? MainAxisAlignment.spaceBetween 
+            : MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: accent.withAlpha(20), 
+              borderRadius: BorderRadius.circular(12), 
+              border: Border.all(color: accent.withAlpha(40))
+            ),
+            child: Text(
+              'ds_status_info'.tr(args: [_translateMode(state.gameMode).toUpperCase(), state.sequenceLength.toString()]), 
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 1)
+            ),
+          ),
+          if (state.gameType == GameType.fastTest)
+            Row(
+              children: List.generate(
+                3, 
+                (index) => Padding(
+                  padding: const EdgeInsets.only(left: 4.0),
+                  child: Icon(
+                    Icons.favorite, 
+                    size: 22, 
+                    color: index < (3 - state.failsInCurrentSpan) ? Colors.redAccent : (isDark ? Colors.white12 : Colors.black12)
+                  ),
+                )
+              )
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSplash(BuildContext context) {
     Future.microtask(() { if (context.mounted) context.read<DigitSpanBloc>().add(SplashFinishedEvent()); });
     return const SizedBox.shrink();
@@ -186,65 +262,62 @@ class DigitSpanScreen extends StatelessWidget {
 
     switch (state.phase) {
       case GamePhase.menu:
-        return SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            children: [
-              Stack(
-                alignment: Alignment.topRight,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    child: Icon(Icons.onetwothree_rounded, size: 80, color: accent.withAlpha(150)),
-                  ),
-                  Positioned(
-                    top: 0, right: 0,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(20),
-                        onTap: () => _showModuleInfoDialog(context, isDark, accent),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: accent.withAlpha(20),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: accent.withAlpha(50)),
-                          ),
-                          child: Icon(Icons.help_outline_rounded, size: 20, color: accent),
+        return Column(
+          children: [
+            Stack(
+              alignment: Alignment.topRight,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  child: Icon(Icons.onetwothree_rounded, size: 80, color: accent.withAlpha(150)),
+                ),
+                Positioned(
+                  top: 0, right: 0,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: () => _showModuleInfoDialog(context, isDark, accent),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: accent.withAlpha(20),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: accent.withAlpha(50)),
                         ),
+                        child: Icon(Icons.help_outline_rounded, size: 20, color: accent),
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 30),
-              
-              _menuBtn(context, 'ds_mode_fast'.tr(), () {
-                context.read<DigitSpanBloc>().add(SetLanguageEvent(context.locale.languageCode));
-                context.read<DigitSpanBloc>().add(const SelectGameTypeEvent(GameType.fastTest));
-              }, isDark, icon: Icons.bolt_rounded, isPrimary: true),
-              const SizedBox(height: 16),
-              
-              _menuBtn(context, 'ds_mode_continuous'.tr(), () {
-                context.read<DigitSpanBloc>().add(SetLanguageEvent(context.locale.languageCode));
-                context.read<DigitSpanBloc>().add(const SelectGameTypeEvent(GameType.gameMode));
-              }, isDark, icon: Icons.play_arrow_rounded),
-              const SizedBox(height: 16),
-              
-              _menuBtn(context, 'ds_mode_free'.tr(), () {
-                context.read<DigitSpanBloc>().add(SetLanguageEvent(context.locale.languageCode));
-                context.read<DigitSpanBloc>().add(const SelectGameTypeEvent(GameType.training));
-              }, isDark, icon: Icons.model_training_rounded),
-              const SizedBox(height: 40),
-              
-              _menuBtn(context, 'global_analytics'.tr(), () => context.read<DigitSpanBloc>().add(ShowResultsEvent()), isDark, icon: Icons.insights_rounded, isSecondary: true),
-              const SizedBox(height: 16),
-              _menuBtn(context, 'global_settings'.tr(), () => context.read<DigitSpanBloc>().add(ShowSettingsEvent()), isDark, icon: Icons.tune_rounded, isSecondary: true),
-              const SizedBox(height: 32),
-              _menuBtn(context, 'global_exit_module'.tr(), () => Navigator.of(context).pop(), isDark, icon: Icons.power_settings_new_rounded, isDanger: true),
-            ],
-          ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 30),
+            
+            _menuBtn(context, 'ds_mode_fast'.tr(), () {
+              context.read<DigitSpanBloc>().add(SetLanguageEvent(context.locale.languageCode));
+              context.read<DigitSpanBloc>().add(const SelectGameTypeEvent(GameType.fastTest));
+            }, isDark, icon: Icons.bolt_rounded, isPrimary: true),
+            const SizedBox(height: 16),
+            
+            _menuBtn(context, 'ds_mode_continuous'.tr(), () {
+              context.read<DigitSpanBloc>().add(SetLanguageEvent(context.locale.languageCode));
+              context.read<DigitSpanBloc>().add(const SelectGameTypeEvent(GameType.gameMode));
+            }, isDark, icon: Icons.play_arrow_rounded),
+            const SizedBox(height: 16),
+            
+            _menuBtn(context, 'ds_mode_free'.tr(), () {
+              context.read<DigitSpanBloc>().add(SetLanguageEvent(context.locale.languageCode));
+              context.read<DigitSpanBloc>().add(const SelectGameTypeEvent(GameType.training));
+            }, isDark, icon: Icons.model_training_rounded),
+            const SizedBox(height: 40),
+            
+            _menuBtn(context, 'global_analytics'.tr(), () => context.read<DigitSpanBloc>().add(ShowResultsEvent()), isDark, icon: Icons.insights_rounded, isSecondary: true),
+            const SizedBox(height: 16),
+            _menuBtn(context, 'global_settings'.tr(), () => context.read<DigitSpanBloc>().add(ShowSettingsEvent()), isDark, icon: Icons.tune_rounded, isSecondary: true),
+            const SizedBox(height: 32),
+            _menuBtn(context, 'global_exit_module'.tr(), () => Navigator.of(context).pop(), isDark, icon: Icons.power_settings_new_rounded, isDanger: true),
+          ],
         );
 
       case GamePhase.settings:
@@ -354,7 +427,6 @@ class DigitSpanScreen extends StatelessWidget {
 
       case GamePhase.choosingMode:
         return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text('ds_select_mode_title'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2)),
             const SizedBox(height: 30),
@@ -372,35 +444,27 @@ class DigitSpanScreen extends StatelessWidget {
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (state.isGamificationEnabled && state.gameType == GameType.gameMode) ...[
+            _buildGameTopBar(state, isDark, accent),
+            if (state.isGamificationEnabled && state.gameType == GameType.gameMode && state.consecutiveSuccesses >= 5) ...[
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                decoration: BoxDecoration(color: accent.withAlpha(20), borderRadius: BorderRadius.circular(16), border: Border.all(color: accent.withAlpha(40))),
-                child: Text('ds_status_info'.tr(args: [_translateMode(state.gameMode).toUpperCase(), state.sequenceLength.toString()]),
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2)),
-              ),
-              if (state.consecutiveSuccesses >= 5) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.orangeAccent.withAlpha(30),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.orangeAccent.withAlpha(50)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.local_fire_department_rounded, color: Colors.orangeAccent, size: 18),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Úspěchů v řadě: ${state.consecutiveSuccesses}',
-                        style: const TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1),
-                      ),
-                    ],
-                  ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.orangeAccent.withAlpha(30),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orangeAccent.withAlpha(50)),
                 ),
-              ],
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.local_fire_department_rounded, color: Colors.orangeAccent, size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Úspěchů v řadě: ${state.consecutiveSuccesses}',
+                      style: const TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1),
+                    ),
+                  ],
+                ),
+              ),
             ],
             const SizedBox(height: 60),
             Text(
@@ -428,6 +492,7 @@ class DigitSpanScreen extends StatelessWidget {
         return Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            _buildGameTopBar(state, isDark, accent),
             if (state.isGamificationEnabled && state.gameType == GameType.gameMode) ...[
               Text('ds_phase_reconstruct'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 4)),
               if (state.consecutiveSuccesses >= 5) ...[
@@ -500,43 +565,31 @@ class DigitSpanScreen extends StatelessWidget {
           builder: (context, snapshot) {
             if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
             final prefs = snapshot.data!;
-            // Získání čisté historie v naturálním formátu 
             List<String> rawHistory = prefs.getStringList('ds_raw_history') ?? [];
 
             return Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(height: 10),
-                Expanded(
-                  child: _neuroCard(isDark, accent, Column(
-                      children: [
-                        Text('ds_analytics_title'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2)),
-                        const SizedBox(height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _scBadge('ds_badge_seq'.tr(), state.highScores[GameMode.forward] ?? 0, accent, isDark),
-                            _scBadge('ds_badge_rev'.tr(), state.highScores[GameMode.reverse] ?? 0, accent, isDark),
-                            _scBadge('ds_badge_asc'.tr(), state.highScores[GameMode.ascending] ?? 0, accent, isDark),
-                          ],
-                        ),
-                        const Divider(color: Colors.white12, height: 24),
-                        Expanded(
-                          child: SingleChildScrollView(
-                            physics: const BouncingScrollPhysics(),
-                            child: Column(
-                              children: [
-                                _buildGraph(context, rawHistory, isDark, true, state.isGamificationEnabled), 
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                _neuroCard(isDark, accent, Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('ds_analytics_title'.tr(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: accent, letterSpacing: 2)),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _scBadge('ds_badge_seq'.tr(), state.highScores[GameMode.forward] ?? 0, accent, isDark),
+                          _scBadge('ds_badge_rev'.tr(), state.highScores[GameMode.reverse] ?? 0, accent, isDark),
+                          _scBadge('ds_badge_asc'.tr(), state.highScores[GameMode.ascending] ?? 0, accent, isDark),
+                        ],
+                      ),
+                      const Divider(color: Colors.white12, height: 24),
+                      _buildGraph(context, rawHistory, isDark, true, state.isGamificationEnabled), 
+                    ],
                   ),
                 ),
                 const SizedBox(height: 20),
                 _menuBtn(context, 'global_btn_back'.tr(), () => context.read<DigitSpanBloc>().add(ReturnToMenuEvent()), isDark),
-                const SizedBox(height: 10),
               ],
             );
           }
@@ -546,7 +599,6 @@ class DigitSpanScreen extends StatelessWidget {
     }
   }
 
-  // --- NOVÝ DIGIT SPAN GRAF ---
   Widget _buildGraph(BuildContext context, List<String> rawHistory, bool isDark, bool is24h, bool isGamificationEnabled) {
     final Color accent = isDark ? const Color(0xFF00E5FF) : const Color(0xFF7000FF);
     
@@ -570,7 +622,6 @@ class DigitSpanScreen extends StatelessWidget {
         GameMode mode = GameMode.values.firstWhere((e) => e.name == parts[1], orElse: () => GameMode.forward);
         double span = double.tryParse(parts[2]) ?? 0.0;
         
-        // ZMĚNA: Přepočet na KCI za letu pro graf, pokud je gamifikace aktivní
         double finalValue = isGamificationEnabled 
             ? DigitSpanBloc.calculateKci(span, mode).toDouble() 
             : span;
@@ -612,7 +663,6 @@ class DigitSpanScreen extends StatelessWidget {
         double heightFactor = item['value'] / (maxY > 0 ? maxY : 1);
         Color barColor = accent; 
         
-        // Vizuální odlišení módů
         if (item['mode'] == GameMode.reverse) barColor = const Color(0xFFFF007F);
         if (item['mode'] == GameMode.ascending) barColor = const Color(0xFF00E676);
 
@@ -679,19 +729,17 @@ class DigitSpanScreen extends StatelessWidget {
   }
 
   Widget _buildStatusMessage(String text, IconData icon, Color color, bool isDark) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(30),
-            decoration: BoxDecoration(shape: BoxShape.circle, color: color.withAlpha(20), boxShadow: [BoxShadow(color: color.withAlpha(40), blurRadius: 40)]),
-            child: Icon(icon, size: 100, color: color),
-          ),
-          const SizedBox(height: 30),
-          Text(text, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 2, color: color)),
-        ],
-      ),
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(30),
+          decoration: BoxDecoration(shape: BoxShape.circle, color: color.withAlpha(20), boxShadow: [BoxShadow(color: color.withAlpha(40), blurRadius: 40)]),
+          child: Icon(icon, size: 100, color: color),
+        ),
+        const SizedBox(height: 30),
+        Text(text, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: 2, color: color)),
+      ],
     );
   }
 

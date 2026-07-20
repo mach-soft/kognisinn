@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -5,8 +7,8 @@ import 'package:vibration/vibration.dart';
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:kognisinn/env.dart'; // IMPORT ENVIRONMENT PROMĚNNÝCH
 import 'package:kognisinn/screens/calibration/calibration_screen.dart';
-// PŘIDÁNO: Import hlavního menu pro případ přeskočení kalibrace
 import 'main_menu_screen.dart'; 
 import '../bloc/settings/settings_bloc.dart';
 
@@ -33,13 +35,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
+  // Bezpečná detekce: Zobrazit haptiku pouze na mobilních zařízeních
+  bool get _showHaptics {
+    if (kIsWeb) return false;
+    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) return false;
+    return true;
+  }
+
+  // Dynamický výpočet celkového počtu slidů
+  int _getTotalSlides(bool isGamified) {
+    int count = 3; // Základ: Welcome, Insights, Gamification
+    if (_showHaptics) count++; // Haptika
+    if (isGamified) count++; // Rocket slide
+    count++; // Disclaimer
+    return count;
+  }
+
   Future<void> _finishOnboarding(bool isGamified) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('is_first_run', false);
     
     if (!mounted) return;
     
-    // ZMĚNA: Přesměrování na základě zvolené gamifikace
     if (isGamified) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const CalibrationScreen()),
@@ -52,9 +69,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   void _nextPage() {
-    // Načteme aktuální stav gamifikace z BLoCu
     final gamified = context.read<SettingsBloc>().state.showGamifiedValues;
-    final totalSlides = gamified ? 6 : 5;
+    final totalSlides = _getTotalSlides(gamified);
     final disclaimerIndex = totalSlides - 1;
 
     if (_currentPage < disclaimerIndex) {
@@ -64,11 +80,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         curve: Curves.easeInOut,
       );
     } else {
-      // Jsme na posledním slidu (Disclaimer)
       if (_hasAcceptedDisclaimer) {
         _finishOnboarding(gamified);
       } else {
-        Vibration.vibrate(duration: 200); 
+        if (Env.useHaptics && _showHaptics) Vibration.vibrate(duration: 200); 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('onboard_disclaimer_error'.tr()),
@@ -83,7 +98,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   void _skipToDisclaimer() {
     final gamified = context.read<SettingsBloc>().state.showGamifiedValues;
-    final disclaimerIndex = (gamified ? 6 : 5) - 1;
+    final totalSlides = _getTotalSlides(gamified);
+    final disclaimerIndex = totalSlides - 1;
     
     _pageController.animateToPage(
       disclaimerIndex,
@@ -111,16 +127,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
         ),
         child: SafeArea(
-          // Obaleno v BlocBuilder, aby Onboarding reagoval na změnu přepínače
           child: BlocBuilder<SettingsBloc, SettingsState>(
             builder: (context, state) {
               final bool gamified = state.showGamifiedValues;
-              final int totalSlides = gamified ? 6 : 5;
-              final int disclaimerIndex = totalSlides - 1;
 
-              // Dynamické sestavení slidů
+              // Dynamické skládání slidů
               List<Widget> slides = [
-                // SLIDE 1: Intro
                 _buildSlide(
                   icon: Icons.psychology_rounded,
                   title: 'onboard_1_title'.tr(),
@@ -130,7 +142,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   textColor: textColor,
                   subtitleColor: subtitleColor,
                 ),
-                // SLIDE 2: Insights
                 _buildSlide(
                   icon: Icons.insights_rounded,
                   title: 'onboard_2_title'.tr(),
@@ -139,50 +150,56 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   textColor: textColor,
                   subtitleColor: subtitleColor,
                 ),
-                // SLIDE 3: Haptika
-                _buildSlide(
-                  icon: Icons.vibration_rounded,
-                  title: 'onboard_haptic_title'.tr(), 
-                  description: 'onboard_haptic_desc'.tr(), 
-                  iconColor: accentOrange,
-                  isDark: isDark,
-                  textColor: textColor,
-                  subtitleColor: subtitleColor,
-                  extraContent: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          Vibration.vibrate(duration: 500, amplitude: 255);
-                        },
-                        icon: const Icon(Icons.waves_rounded, size: 20),
-                        label: Text('onboard_haptic_test'.tr()), 
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: accentOrange,
-                          side: BorderSide(color: accentOrange.withAlpha(150), width: 1.5),
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextButton.icon(
-                        onPressed: () {
-                          AppSettings.openAppSettings(type: AppSettingsType.sound);
-                        },
-                        icon: Icon(Icons.settings_rounded, size: 16, color: isDark ? Colors.white54 : Colors.black54),
-                        label: Text(
-                          'onboard_haptic_settings'.tr(),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? Colors.white54 : Colors.black54,
-                            decoration: TextDecoration.underline,
+              ];
+
+              if (_showHaptics) {
+                slides.add(
+                  _buildSlide(
+                    icon: Icons.vibration_rounded,
+                    title: 'onboard_haptic_title'.tr(), 
+                    description: 'onboard_haptic_desc'.tr(), 
+                    iconColor: accentOrange,
+                    isDark: isDark,
+                    textColor: textColor,
+                    subtitleColor: subtitleColor,
+                    extraContent: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            if (Env.useHaptics) Vibration.vibrate(duration: 500, amplitude: 255);
+                          },
+                          icon: const Icon(Icons.waves_rounded, size: 20),
+                          label: Text('onboard_haptic_test'.tr()), 
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: accentOrange,
+                            side: BorderSide(color: accentOrange.withAlpha(150), width: 1.5),
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                                // SLIDE 4: Gamifikace
+                        const SizedBox(height: 16),
+                        TextButton.icon(
+                          onPressed: () {
+                            AppSettings.openAppSettings(type: AppSettingsType.sound);
+                          },
+                          icon: Icon(Icons.settings_rounded, size: 16, color: isDark ? Colors.white54 : Colors.black54),
+                          label: Text(
+                            'onboard_haptic_settings'.tr(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.white54 : Colors.black54,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                );
+              }
+
+              slides.add(
                 _buildSlide(
                   icon: Icons.auto_graph_rounded,
                   title: 'onboarding_gamification_title'.tr(),
@@ -191,7 +208,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   isDark: isDark,
                   textColor: textColor,
                   subtitleColor: subtitleColor,
-                  // ZMĚNA: Přesunuto z extraContent pod ikonu
                   contentBelowIcon: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
@@ -221,11 +237,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ],
                     ),
                   ),
-                ),
+                )
+              );
 
-              ];
-
-              // SLIDE 5: Start / Rocket (Pouze pokud je zapnutá gamifikace)
               if (gamified) {
                 slides.add(
                   _buildSlide(
@@ -240,7 +254,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 );
               }
 
-              // POSLEDNÍ SLIDE: Medical Disclaimer
               slides.add(
                 _buildSlide(
                   icon: Icons.health_and_safety_outlined,
@@ -255,7 +268,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       setState(() {
                         _hasAcceptedDisclaimer = !_hasAcceptedDisclaimer;
                       });
-                      if (_hasAcceptedDisclaimer) Vibration.vibrate(duration: 50);
+                      if (_hasAcceptedDisclaimer && Env.useHaptics && _showHaptics) Vibration.vibrate(duration: 50);
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -277,7 +290,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               setState(() {
                                 _hasAcceptedDisclaimer = value ?? false;
                               });
-                              if (_hasAcceptedDisclaimer) Vibration.vibrate(duration: 50);
+                              if (_hasAcceptedDisclaimer && Env.useHaptics && _showHaptics) Vibration.vibrate(duration: 50);
                             },
                           ),
                           Expanded(
@@ -296,9 +309,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 )
               );
 
+              final int totalSlides = slides.length;
+              final int disclaimerIndex = totalSlides - 1;
+
               return Column(
                 children: [
-                  // --- HORNÍ LIŠTA (Přeskočit) ---
                   Padding(
                     padding: const EdgeInsets.only(right: 16.0, top: 10.0),
                     child: Align(
@@ -321,7 +336,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                   ),
 
-                  // --- OBSAH SLIDŮ ---
                   Expanded(
                     child: PageView(
                       controller: _pageController,
@@ -335,7 +349,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                   ),
 
-                  // --- SPODNÍ NAVIGACE ---
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
                     child: Column(
@@ -346,7 +359,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                         const SizedBox(height: 40),
                         
-                        // Hlavní tlačítko CTA
                         AnimatedOpacity(
                           opacity: (_currentPage == disclaimerIndex && !_hasAcceptedDisclaimer) ? 0.5 : 1.0, 
                           duration: const Duration(milliseconds: 300),
@@ -379,17 +391,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 child: Container(
                                   alignment: Alignment.center,
                                   child: Text(
-  _currentPage == disclaimerIndex ? 'onboard_btn_start'.tr() : 'onboard_btn_next'.tr(), 
-  style: TextStyle(
-    fontSize: 16,
-    fontWeight: FontWeight.w900,
-    letterSpacing: 2,
-    color: _currentPage == disclaimerIndex 
-        ? Colors.white 
-        : (isDark ? accentCyan : accentPurple), 
-  ),
-),
-
+                                    _currentPage == disclaimerIndex ? 'onboard_btn_start'.tr() : 'onboard_btn_next'.tr(), 
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 2,
+                                      color: _currentPage == disclaimerIndex 
+                                          ? Colors.white 
+                                          : (isDark ? accentCyan : accentPurple), 
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -407,9 +418,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  // --- POMOCNÉ WIDGETY ---
-
-    Widget _buildSlide({
+  Widget _buildSlide({
     required IconData icon,
     required String title,
     required String description,
@@ -418,7 +427,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     required Color subtitleColor,
     Color? iconColor,
     bool isTitleHighlighted = false,
-    Widget? contentBelowIcon, // PŘIDÁNO: Widget hned pod ikonu
+    Widget? contentBelowIcon, 
     Widget? extraContent, 
   }) {
     Color effectiveIconColor = iconColor ?? accentCyan;
@@ -451,7 +460,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
               ),
               
-              // NOVÉ: Vykreslení obsahu hned pod ikonou
               if (contentBelowIcon != null) ...[
                 const SizedBox(height: 30),
                 contentBelowIcon,
@@ -493,7 +501,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       ),
     );
   }
-
 
   Widget _buildDot(int index, bool isDark, int disclaimerIndex) {
     bool isActive = _currentPage == index;

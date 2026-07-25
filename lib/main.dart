@@ -11,9 +11,8 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:wiredash/wiredash.dart';
 import 'firebase_options.dart';
 
-import 'screens/main_menu_screen.dart'; 
-import 'screens/language_selection_screen.dart';
-import 'bloc/settings/settings_bloc.dart';
+// --- Centrální import sdíleného jádra (monorepo) ---
+import 'package:kognisinn_core/kognisinn_core.dart';
 
 const bool useTelemetry = bool.fromEnvironment('USE_TELEMETRY', defaultValue: false);
 
@@ -72,7 +71,11 @@ class KognisinnApp extends StatelessWidget {
   final bool isFirstRun;
   final bool isCalibrated;
 
-  const KognisinnApp({super.key, required this.isFirstRun, required this.isCalibrated});
+  const KognisinnApp({
+    super.key, 
+    required this.isFirstRun, 
+    required this.isCalibrated,
+  });
 
   @override
   Widget build(BuildContext context) {

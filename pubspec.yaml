@@ -39,10 +39,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/logo.png
-    - assets/icon.png
-    - assets/translations/
+  
+    
 
 # --- NASTAVENÍ IKONY APLIKACE ---
 flutter_launcher_icons:

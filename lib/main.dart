@@ -57,10 +57,35 @@ void main() async {
   runApp(
     EasyLocalization(
       supportedLocales: const [Locale('cs'), Locale('en'), Locale('de')],
-      path: 'assets/translations', 
+      
+      // ZMĚNA: Cesta k překladům nyní směřuje do sdíleného modulu (kognisinn_core)
+      path: 'packages/kognisinn_core/assets/translations', 
+      
       fallbackLocale: const Locale('cs'), 
-      child: BlocProvider(
-        create: (context) => SettingsBloc(isDarkModeInitial: initialDarkMode),
+      child: MultiBlocProvider(
+        providers: [
+          // Globální BLoC nutný pro UI
+          BlocProvider<SettingsBloc>(
+            create: (context) => SettingsBloc(isDarkModeInitial: initialDarkMode),
+          ),
+          
+          // Herní BLoCy pro FREE verzi (bez Supabase repozitáře, čistě lokální)
+          BlocProvider<DigitSpanBloc>(
+            create: (context) => DigitSpanBloc(),
+          ),
+          BlocProvider<ECorsiBloc>(
+            create: (context) => ECorsiBloc(),
+          ),
+          BlocProvider<MemoryPalaceBloc>(
+            create: (context) => MemoryPalaceBloc(),
+          ),
+          BlocProvider<StroopBloc>(
+            create: (context) => StroopBloc(),
+          ),
+          BlocProvider<MultiNBackBloc>(
+            create: (context) => MultiNBackBloc(),
+          ),
+        ],
         child: KognisinnApp(isFirstRun: isFirstRun, isCalibrated: isCalibrated),
       ),
     ),

@@ -117,7 +117,32 @@ class KognisinnApp extends StatelessWidget {
             brightness: state.isDarkMode ? Brightness.dark : Brightness.light,
             useMaterial3: true,
           ),
-          home: isFirstRun ? const LanguageSelectionScreen() : MainMenuScreen(isCalibrated: isCalibrated)
+          // ZMĚNA: Použití Builderu pro inicializaci Navigatoru a implementace injektovaných callbacků
+          home: Builder(
+            builder: (appContext) {
+              if (isFirstRun) {
+                return LanguageSelectionScreen(
+                  onLanguageSelected: () {
+                    Navigator.of(appContext).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (context) => ThemeSelectionScreen(
+                          onThemeSelected: () {
+                            Navigator.of(appContext).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (context) => MainMenuScreen(isCalibrated: isCalibrated),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                );
+              } else {
+                return MainMenuScreen(isCalibrated: isCalibrated);
+              }
+            },
+          ),
         );
 
         if (!useTelemetry) {

@@ -1,0 +1,39 @@
+Date : 2026-08-04 02:17:55
+Directory : c:\Users\macha\develop\kognisinn_workspace\kognisinn_free
+Total : 8 files,  431 codes, 0 comments, 26 blanks, all 457 lines
+
+Languages
++----------+------------+------------+------------+------------+------------+
+| language | files      | code       | comment    | blank      | total      |
++----------+------------+------------+------------+------------+------------+
+| Markdown |          4 |        294 |          0 |         26 |        320 |
+| CSV      |          2 |        134 |          0 |          0 |        134 |
+| Swift    |          1 |          2 |          0 |          0 |          2 |
+| JSON     |          1 |          1 |          0 |          0 |          1 |
++----------+------------+------------+------------+------------+------------+
+
+Directories
++--------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                                         | files      | code       | comment    | blank      | total      |
++--------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                                            |          8 |        431 |          0 |         26 |        457 |
+| .VSCodeCounter                                                                                               |          7 |        429 |          0 |         26 |        455 |
+| .VSCodeCounter\2026-07-29_07-28-46                                                                           |          7 |        429 |          0 |         26 |        455 |
+| macos                                                                                                        |          1 |          2 |          0 |          0 |          2 |
+| macos\Flutter                                                                                                |          1 |          2 |          0 |          0 |          2 |
++--------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++--------------------------------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| filename                                                                                                     | language | code       | comment    | blank      | total      |
++--------------------------------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\.VSCodeCounter\2026-07-29_07-28-46\details.md      | Markdown |         74 |          0 |          6 |         80 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\.VSCodeCounter\2026-07-29_07-28-46\diff-details.md | Markdown |         74 |          0 |          6 |         80 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\.VSCodeCounter\2026-07-29_07-28-46\diff.csv        | CSV      |         67 |          0 |          0 |         67 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\.VSCodeCounter\2026-07-29_07-28-46\diff.md         | Markdown |         73 |          0 |          7 |         80 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\.VSCodeCounter\2026-07-29_07-28-46\results.csv     | CSV      |         67 |          0 |          0 |         67 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\.VSCodeCounter\2026-07-29_07-28-46\results.json    | JSON     |          1 |          0 |          0 |          1 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\.VSCodeCounter\2026-07-29_07-28-46\results.md      | Markdown |         73 |          0 |          7 |         80 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\macos\Flutter\GeneratedPluginRegistrant.swift      | Swift    |          2 |          0 |          0 |          2 |
+| Total                                                                                                        |          |        431 |          0 |         26 |        457 |
++--------------------------------------------------------------------------------------------------------------+----------+------------+------------+------------+------------+

@@ -1,0 +1,148 @@
+Date : 2026-07-29 07:28:46
+Directory : c:\Users\macha\develop\kognisinn_workspace\kognisinn_free
+Total : 65 files,  2492 codes, 239 comments, 482 blanks, all 3213 lines
+
+Languages
++------------+------------+------------+------------+------------+------------+
+| language   | files      | code       | comment    | blank      | total      |
++------------+------------+------------+------------+------------+------------+
+| C++        |         16 |        591 |        136 |        191 |        918 |
+| XML        |         13 |        539 |         42 |         20 |        601 |
+| CMake      |          8 |        472 |          0 |         92 |        564 |
+| Markdown   |          6 |        271 |          0 |         56 |        327 |
+| Dart       |          2 |        233 |          6 |         36 |        275 |
+| JSON       |          6 |        149 |          0 |          4 |        153 |
+| Swift      |          7 |         83 |          7 |         25 |        115 |
+| HTML       |          1 |         79 |         23 |         41 |        143 |
+| YAML       |          3 |         66 |         25 |         15 |        106 |
+| Properties |          2 |          7 |          0 |          2 |          9 |
+| CSV        |          1 |          2 |          0 |          0 |          2 |
++------------+------------+------------+------------+------------+------------+
+
+Directories
++------------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                                                         | files      | code       | comment    | blank      | total      |
++------------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                                                            |         65 |      2,492 |        239 |        482 |      3,213 |
+| . (Files)                                                                                                                    |          5 |        122 |         25 |         43 |        190 |
+| .VSCodeCounter                                                                                                               |          5 |        215 |          0 |         26 |        241 |
+| .VSCodeCounter\2026-07-01_11-44-56                                                                                           |          5 |        215 |          0 |         26 |        241 |
+| android                                                                                                                      |         12 |        135 |         40 |         19 |        194 |
+| android (Files)                                                                                                              |          1 |          2 |          0 |          1 |          3 |
+| android\app                                                                                                                  |         10 |        128 |         40 |         17 |        185 |
+| android\app\src                                                                                                              |         10 |        128 |         40 |         17 |        185 |
+| android\app\src\debug                                                                                                        |          1 |          3 |          4 |          1 |          8 |
+| android\app\src\main                                                                                                         |          8 |        122 |         32 |         15 |        169 |
+| android\app\src\main (Files)                                                                                                 |          1 |         44 |          0 |          9 |         53 |
+| android\app\src\main\res                                                                                                     |          7 |         78 |         32 |          6 |        116 |
+| android\app\src\main\res\drawable                                                                                            |          1 |          9 |          0 |          1 |         10 |
+| android\app\src\main\res\drawable-v21                                                                                        |          1 |          9 |          0 |          1 |         10 |
+| android\app\src\main\res\values                                                                                              |          2 |         17 |          9 |          1 |         27 |
+| android\app\src\main\res\values-night                                                                                        |          1 |         13 |          9 |          1 |         23 |
+| android\app\src\main\res\values-night-v31                                                                                    |          1 |         15 |          7 |          1 |         23 |
+| android\app\src\main\res\values-v31                                                                                          |          1 |         15 |          7 |          1 |         23 |
+| android\app\src\profile                                                                                                      |          1 |          3 |          4 |          1 |          8 |
+| android\gradle                                                                                                               |          1 |          5 |          0 |          1 |          6 |
+| android\gradle\wrapper                                                                                                       |          1 |          5 |          0 |          1 |          6 |
+| ios                                                                                                                          |         10 |        142 |          4 |         17 |        163 |
+| ios\Runner                                                                                                                   |          9 |        135 |          2 |         13 |        150 |
+| ios\Runner (Files)                                                                                                           |          3 |         19 |          0 |          7 |         26 |
+| ios\RunnerTests                                                                                                              |          1 |          7 |          2 |          4 |         13 |
+| ios\Runner\Assets.xcassets                                                                                                   |          4 |         48 |          0 |          4 |         52 |
+| ios\Runner\Assets.xcassets\AppIcon.appiconset                                                                                |          1 |          1 |          0 |          0 |          1 |
+| ios\Runner\Assets.xcassets\LaunchBackground.imageset                                                                         |          1 |         21 |          0 |          1 |         22 |
+| ios\Runner\Assets.xcassets\LaunchImage.imageset                                                                              |          2 |         26 |          0 |          3 |         29 |
+| ios\Runner\Base.lproj                                                                                                        |          2 |         68 |          2 |          2 |         72 |
+| lib                                                                                                                          |          2 |        233 |          6 |         36 |        275 |
+| lib (Files)                                                                                                                  |          1 |        143 |          5 |         22 |        170 |
+| lib\models                                                                                                                   |          1 |         90 |          1 |         14 |        105 |
+| linux                                                                                                                        |          9 |        359 |         42 |         94 |        495 |
+| linux (Files)                                                                                                                |          1 |        104 |          0 |         25 |        129 |
+| linux\flutter                                                                                                                |          4 |        125 |          9 |         27 |        161 |
+| linux\runner                                                                                                                 |          4 |        130 |         33 |         42 |        205 |
+| macos                                                                                                                        |          6 |        469 |          5 |         17 |        491 |
+| macos\Flutter                                                                                                                |          1 |         28 |          3 |          4 |         35 |
+| macos\Runner                                                                                                                 |          4 |        434 |          0 |          9 |        443 |
+| macos\Runner (Files)                                                                                                         |          2 |         23 |          0 |          7 |         30 |
+| macos\RunnerTests                                                                                                            |          1 |          7 |          2 |          4 |         13 |
+| macos\Runner\Assets.xcassets                                                                                                 |          1 |         68 |          0 |          1 |         69 |
+| macos\Runner\Assets.xcassets\AppIcon.appiconset                                                                              |          1 |         68 |          0 |          1 |         69 |
+| macos\Runner\Base.lproj                                                                                                      |          1 |        343 |          0 |          1 |        344 |
+| web                                                                                                                          |          2 |        114 |         23 |         42 |        179 |
+| windows                                                                                                                      |         14 |        703 |         94 |        188 |        985 |
+| windows (Files)                                                                                                              |          1 |         89 |          0 |         20 |        109 |
+| windows\flutter                                                                                                              |          4 |        152 |          9 |         29 |        190 |
+| windows\runner                                                                                                               |          9 |        462 |         85 |        139 |        686 |
++------------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++------------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| filename                                                                                                                     | language   | code       | comment    | blank      | total      |
++------------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\.VSCodeCounter\2026-07-01_11-44-56\details.md                      | Markdown   |        103 |          0 |          6 |        109 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\.VSCodeCounter\2026-07-01_11-44-56\diff-details.md                 | Markdown   |          9 |          0 |          6 |         15 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\.VSCodeCounter\2026-07-01_11-44-56\diff.csv                        | CSV        |          2 |          0 |          0 |          2 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\.VSCodeCounter\2026-07-01_11-44-56\diff.md                         | Markdown   |         12 |          0 |          7 |         19 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\.VSCodeCounter\2026-07-01_11-44-56\results.md                      | Markdown   |         89 |          0 |          7 |         96 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\README.md                                                          | Markdown   |         55 |          0 |         28 |         83 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\analysis_options.yaml                                              | YAML       |          6 |         22 |          4 |         32 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\android\app\src\debug\AndroidManifest.xml                          | XML        |          3 |          4 |          1 |          8 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\android\app\src\main\AndroidManifest.xml                           | XML        |         44 |          0 |          9 |         53 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\android\app\src\main\res\drawable-v21\launch_background.xml        | XML        |          9 |          0 |          1 |         10 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\android\app\src\main\res\drawable\launch_background.xml            | XML        |          9 |          0 |          1 |         10 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\android\app\src\main\res\values-night-v31\styles.xml               | XML        |         15 |          7 |          1 |         23 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\android\app\src\main\res\values-night\styles.xml                   | XML        |         13 |          9 |          1 |         23 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\android\app\src\main\res\values-v31\styles.xml                     | XML        |         15 |          7 |          1 |         23 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\android\app\src\main\res\values\colors.xml                         | XML        |          4 |          0 |          0 |          4 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\android\app\src\main\res\values\styles.xml                         | XML        |         13 |          9 |          1 |         23 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\android\app\src\profile\AndroidManifest.xml                        | XML        |          3 |          4 |          1 |          8 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\android\gradle.properties                                          | Properties |          2 |          0 |          1 |          3 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\android\gradle\wrapper\gradle-wrapper.properties                   | Properties |          5 |          0 |          1 |          6 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\devtools_options.yaml                                              | YAML       |          3 |          0 |          1 |          4 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\firebase.json                                                      | JSON       |          1 |          0 |          0 |          1 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\ios\RunnerTests\RunnerTests.swift                                  | Swift      |          7 |          2 |          4 |         13 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\ios\Runner\AppDelegate.swift                                       | Swift      |         14 |          0 |          3 |         17 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\ios\Runner\Assets.xcassets\AppIcon.appiconset\Contents.json        | JSON       |          1 |          0 |          0 |          1 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\ios\Runner\Assets.xcassets\LaunchBackground.imageset\Contents.json | JSON       |         21 |          0 |          1 |         22 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\ios\Runner\Assets.xcassets\LaunchImage.imageset\Contents.json      | JSON       |         23 |          0 |          1 |         24 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\ios\Runner\Assets.xcassets\LaunchImage.imageset\README.md          | Markdown   |          3 |          0 |          2 |          5 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\ios\Runner\Base.lproj\LaunchScreen.storyboard                      | XML        |         43 |          1 |          1 |         45 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\ios\Runner\Base.lproj\Main.storyboard                              | XML        |         25 |          1 |          1 |         27 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\ios\Runner\Runner-Bridging-Header.h                                | C++        |          1 |          0 |          1 |          2 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\ios\Runner\SceneDelegate.swift                                     | Swift      |          4 |          0 |          3 |          7 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\lib\main.dart                                                      | Dart       |        143 |          5 |         22 |        170 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\lib\models\cognitive_models.dart                                   | Dart       |         90 |          1 |         14 |        105 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\linux\CMakeLists.txt                                               | CMake      |        104 |          0 |         25 |        129 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\linux\flutter\CMakeLists.txt                                       | CMake      |         79 |          0 |         10 |         89 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\linux\flutter\generated_plugin_registrant.cc                       | C++        |         19 |          4 |          5 |         28 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\linux\flutter\generated_plugin_registrant.h                        | C++        |          5 |          5 |          6 |         16 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\linux\flutter\generated_plugins.cmake                              | CMake      |         22 |          0 |          6 |         28 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\linux\runner\CMakeLists.txt                                        | CMake      |         21 |          0 |          6 |         27 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\linux\runner\main.cc                                               | C++        |          5 |          0 |          2 |          7 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\linux\runner\my_application.cc                                     | C++        |         94 |         26 |         29 |        149 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\linux\runner\my_application.h                                      | C++        |         10 |          7 |          5 |         22 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\macos\Flutter\GeneratedPluginRegistrant.swift                      | Swift      |         28 |          3 |          4 |         35 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\macos\RunnerTests\RunnerTests.swift                                | Swift      |          7 |          2 |          4 |         13 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\macos\Runner\AppDelegate.swift                                     | Swift      |         11 |          0 |          3 |         14 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\macos\Runner\Assets.xcassets\AppIcon.appiconset\Contents.json      | JSON       |         68 |          0 |          1 |         69 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\macos\Runner\Base.lproj\MainMenu.xib                               | XML        |        343 |          0 |          1 |        344 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\macos\Runner\MainFlutterWindow.swift                               | Swift      |         12 |          0 |          4 |         16 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\pubspec.yaml                                                       | YAML       |         57 |          3 |         10 |         70 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\web\index.html                                                     | HTML       |         79 |         23 |         41 |        143 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\web\manifest.json                                                  | JSON       |         35 |          0 |          1 |         36 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\windows\CMakeLists.txt                                             | CMake      |         89 |          0 |         20 |        109 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\windows\flutter\CMakeLists.txt                                     | CMake      |         98 |          0 |         12 |        110 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\windows\flutter\generated_plugin_registrant.cc                     | C++        |         24 |          4 |          5 |         33 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\windows\flutter\generated_plugin_registrant.h                      | C++        |          5 |          5 |          6 |         16 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\windows\flutter\generated_plugins.cmake                            | CMake      |         25 |          0 |          6 |         31 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\windows\runner\CMakeLists.txt                                      | CMake      |         34 |          0 |          7 |         41 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\windows\runner\flutter_window.cpp                                  | C++        |         49 |          7 |         16 |         72 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\windows\runner\flutter_window.h                                    | C++        |         20 |          5 |          9 |         34 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\windows\runner\main.cpp                                            | C++        |         30 |          4 |         10 |         44 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\windows\runner\resource.h                                          | C++        |          9 |          6 |          2 |         17 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\windows\runner\utils.cpp                                           | C++        |         54 |          2 |         10 |         66 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\windows\runner\utils.h                                             | C++        |          8 |          6 |          6 |         20 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\windows\runner\win32_window.cpp                                    | C++        |        210 |         24 |         55 |        289 |
+| c:\Users\macha\develop\kognisinn_workspace\kognisinn_free\windows\runner\win32_window.h                                      | C++        |         48 |         31 |         24 |        103 |
+| Total                                                                                                                        |            |      2,492 |        239 |        482 |      3,213 |
++------------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+

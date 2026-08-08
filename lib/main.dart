@@ -25,11 +25,12 @@ void main() async {
   ]);
 
   final prefs = await SharedPreferences.getInstance();
+
   final bool isFirstRun = prefs.getBool('is_first_run') ?? true;
   final bool isCalibrated = prefs.getBool('global_is_calibrated') ?? false;
   final bool initialDarkMode = prefs.getBool('is_dark_mode') ?? true;
 
-  // OCHRANA TELEMETRIE: Try-catch blok zabrání zamrznutí celé aplikace
+  // OCHRANA TELEMETRIE
   if (useTelemetry) {
     debugPrint("--- STARTUJI TELEMETRII ---");
     try {
@@ -48,7 +49,6 @@ void main() async {
       debugPrint("--- CRASHLYTICS NASTAVEN ---");
     } catch (e) {
       debugPrint("--- KRITICKÁ CHYBA FIREBASE: $e ---");
-      debugPrint("--- (Aplikace pokračuje bez Crashlytics) ---");
     }
   }
 
@@ -57,34 +57,19 @@ void main() async {
   runApp(
     EasyLocalization(
       supportedLocales: const [Locale('cs'), Locale('en'), Locale('de')],
-      
-      // ZMĚNA: Cesta k překladům nyní směřuje do sdíleného modulu (kognisinn_core)
       path: 'packages/kognisinn_core/assets/translations', 
-      
       fallbackLocale: const Locale('cs'), 
       child: MultiBlocProvider(
         providers: [
-          // Globální BLoC nutný pro UI
           BlocProvider<SettingsBloc>(
             create: (context) => SettingsBloc(isDarkModeInitial: initialDarkMode),
           ),
-          
-          // Herní BLoCy pro FREE verzi (bez Supabase repozitáře, čistě lokální)
-          BlocProvider<DigitSpanBloc>(
-            create: (context) => DigitSpanBloc(),
-          ),
-          BlocProvider<ECorsiBloc>(
-            create: (context) => ECorsiBloc(),
-          ),
-          BlocProvider<MemoryPalaceBloc>(
-            create: (context) => MemoryPalaceBloc(),
-          ),
-          BlocProvider<StroopBloc>(
-            create: (context) => StroopBloc(),
-          ),
-          BlocProvider<MultiNBackBloc>(
-            create: (context) => MultiNBackBloc(),
-          ),
+          // ZDE JE KLÍČOVÁ ZMĚNA: Ve FREE verzi se zásadně nepředává žádný statsRepository!
+          BlocProvider<DigitSpanBloc>(create: (context) => DigitSpanBloc()),
+          BlocProvider<ECorsiBloc>(create: (context) => ECorsiBloc()),
+          BlocProvider<MemoryPalaceBloc>(create: (context) => MemoryPalaceBloc()),
+          BlocProvider<StroopBloc>(create: (context) => StroopBloc()),
+          BlocProvider<MultiNBackBloc>(create: (context) => MultiNBackBloc()),
         ],
         child: KognisinnApp(isFirstRun: isFirstRun, isCalibrated: isCalibrated),
       ),
@@ -117,7 +102,7 @@ class KognisinnApp extends StatelessWidget {
             brightness: state.isDarkMode ? Brightness.dark : Brightness.light,
             useMaterial3: true,
           ),
-          // ZMĚNA: Použití Builderu pro inicializaci Navigatoru a implementace injektovaných callbacků
+          
           home: Builder(
             builder: (appContext) {
               if (isFirstRun) {
@@ -126,10 +111,27 @@ class KognisinnApp extends StatelessWidget {
                     Navigator.of(appContext).pushReplacement(
                       MaterialPageRoute(
                         builder: (context) => ThemeSelectionScreen(
-                          onThemeSelected: () {
-                            Navigator.of(appContext).pushReplacement(
+                          onThemeSelected: (safeContext) {
+                            Navigator.of(safeContext).pushReplacement(
                               MaterialPageRoute(
-                                builder: (context) => MainMenuScreen(isCalibrated: isCalibrated),
+                                builder: (context) => OnboardingScreen(
+                                  onFinish: (bool isGamified) {
+                                    if (isGamified && !isCalibrated) {
+                                      Navigator.of(context).pushReplacement(
+                                        MaterialPageRoute(
+                                          // Zkontrolujte přesný název třídy kalibrace
+                                          builder: (context) => const CalibrationScreen(), 
+                                        ),
+                                      );
+                                    } else {
+                                      Navigator.of(context).pushReplacement(
+                                        MaterialPageRoute(
+                                          builder: (context) => MainMenuScreen(isCalibrated: isCalibrated),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                ),
                               ),
                             );
                           },
@@ -149,16 +151,13 @@ class KognisinnApp extends StatelessWidget {
           return app;
         }
 
-        // OCHRANA WIREDASH: Kontrola, zda se klíče načetly správně
         final wiredashId = const String.fromEnvironment('WIREDASH_ID');
         final wiredashSecret = const String.fromEnvironment('WIREDASH_SECRET');
 
         if (wiredashId.isEmpty || wiredashSecret.isEmpty) {
-          debugPrint("--- CHYBA: Wiredash klíče chybí v secrets.json! Přeskakuji spuštění Wiredash. ---");
-          return app; // Vrátíme čistou aplikaci bez Wiredash, aby nezamrzla
+          return app; 
         }
 
-        debugPrint("--- WIREDASH ÚSPĚŠNĚ OBALUJE APLIKACI ---");
         return Wiredash(
           projectId: wiredashId,
           secret: wiredashSecret,
